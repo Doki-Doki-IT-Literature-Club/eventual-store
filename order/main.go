@@ -15,11 +15,20 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-const base2Address = "http://base-2-base-2-1:8002"
-const kafkaAddress = "kafka:9092"
-const dbConnString = "postgres://user:password@postgres:5432/mydb"
-const orderShippingRequestTopic = "order-shipping-request"
-const orderRequestTopic = "order-request"
+const (
+	base2Address              = "http://base-2-base-2-1:8002"
+	kafkaAddress              = "kafka:9092"
+	dbConnString              = "postgres://user:password@postgres:5432/mydb"
+	orderShippingRequestTopic = "order-shipping-request"
+	orderShippingStatusTopic  = "order-shipping-status"
+	orderRequestTopic         = "order-request"
+	orderRequestResultTopic   = "order-request-result"
+)
+
+type OrderShippingStatus struct {
+	OrderID string `json:"order_id"`
+	Status  string `json:"status"`
+}
 
 type OrderRequest struct {
 	OrderID  string         `json:"order_id"`
@@ -101,7 +110,7 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 		sendOrderRequest(kcl, orderID, payload.Products, ctx)
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(exmpl.A))
+		w.Write([]byte(orderID.String()))
 	})
 
 	port := 8002
@@ -116,6 +125,7 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 }
 
 func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
+	log.Printf("Start consuming events...")
 	for {
 		events := kcl.PollFetches(ctx)
 		if err := events.Err(); err != nil {
@@ -124,18 +134,40 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 		}
 
 		events.EachRecord(func(r *kgo.Record) {
-			log.Printf("Processing record")
+			log.Printf("New record")
+			if r.Topic == orderRequestResultTopic {
+				log.Printf("Processing record from topic %s", r.Topic)
 
-			orderRequestResponse := &OrderRequestResponse{}
-			if err := json.Unmarshal(r.Value, orderRequestResponse); err != nil {
-				log.Printf("Error unmarshalling record: %v", err)
-				return
-			}
+				orderRequestResponse := &OrderRequestResponse{}
+				if err := json.Unmarshal(r.Value, orderRequestResponse); err != nil {
+					log.Printf("Error unmarshalling record: %v", err)
+					return
+				}
 
-			updateOrder(conn, orderRequestResponse.OrderID, orderRequestResponse.RequestStatus)
-			if orderRequestResponse.RequestStatus == "accepted" {
-				sendOrderShippingRequest(kcl, orderRequestResponse.OrderID, ctx)
-				log.Printf("Sent shipping request")
+				err := updateOrder(conn, orderRequestResponse.OrderID, orderRequestResponse.RequestStatus)
+				if err != nil {
+					log.Printf(err.Error())
+				}
+				if orderRequestResponse.RequestStatus == "accepted" {
+					sendOrderShippingRequest(kcl, orderRequestResponse.OrderID, ctx)
+					log.Printf("Sent shipping request")
+				}
+			} else if r.Topic == orderShippingStatusTopic {
+				log.Printf("Processing record from topic %s", r.Topic)
+
+				orderShippingStatus := &OrderShippingStatus{}
+				if err := json.Unmarshal(r.Value, orderShippingStatus); err != nil {
+					log.Printf("Error unmarshalling record: %v", err)
+					return
+				}
+
+				err := updateOrder(conn, orderShippingStatus.OrderID, orderShippingStatus.Status)
+				if err != nil {
+					log.Printf(err.Error())
+				}
+
+			} else {
+				log.Printf("Record from topic %s, skipping for now...", r.Topic)
 			}
 		})
 	}
@@ -174,10 +206,10 @@ func insertOrder(conn *pgx.Conn, orderID uuid.UUID, status string, products map[
 
 func updateOrder(conn *pgx.Conn, orderID string, status string) error {
 	log.Print("Starting updating")
-	query := fmt.Sprintf("UPDATE orders set status=$1 WHERE id=$2)")
-	_, err := conn.Exec(context.Background(), query, orderID, status)
+	query := "UPDATE orders set status=$1 WHERE id=$2"
+	_, err := conn.Exec(context.Background(), query, status, orderID)
 	if err != nil {
-		return fmt.Errorf("unable to insert: %v", err)
+		return fmt.Errorf("unable to update: %v", err)
 	}
 	return nil
 }
@@ -189,8 +221,11 @@ func main() {
 	kcl, err := kgo.NewClient(
 		kgo.SeedBrokers(kafkaAddress),
 		kgo.AllowAutoTopicCreation(),
-		kgo.ConsumerGroup("shipping-group"),
-		kgo.ConsumeTopics(orderShippingRequestTopic),
+		kgo.ConsumerGroup("order-group"),
+		kgo.ConsumeTopics(
+			orderRequestResultTopic,
+			orderShippingStatusTopic,
+		),
 	)
 
 	if err != nil {

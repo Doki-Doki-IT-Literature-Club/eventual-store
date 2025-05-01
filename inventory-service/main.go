@@ -91,7 +91,7 @@ func consume(kcl *kgo.Client, ctx context.Context) {
 					log.Printf("record had a produce error: %v\n", err)
 				}
 
-				log.Printf("Produced record to topic %s", orderRequestTopic)
+				log.Printf("Produced record to topic %s", orderRequestResultTopic)
 			})
 		})
 	}
