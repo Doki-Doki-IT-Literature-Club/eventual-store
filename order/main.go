@@ -26,8 +26,16 @@ type OrderRequest struct {
 	Products map[string]int `json:"products"`
 }
 
+type OrderRequestResponse struct {
+	OrderID       string `json:"order_id"`
+	RequestStatus string `json:"request_status"`
+}
 type CreateOrderPayload struct {
 	Products map[string]int `json:"products"`
+}
+
+type OrderShippingRequest struct {
+	OrderID string `json:"order_id"`
 }
 
 func sendOrderRequest(kcl *kgo.Client, orderID uuid.UUID, products map[string]int, ctx context.Context) {
@@ -53,6 +61,29 @@ func sendOrderRequest(kcl *kgo.Client, orderID uuid.UUID, products map[string]in
 		}
 
 		log.Printf("Produced record to topic %s", orderRequestTopic)
+	})
+}
+
+func sendOrderShippingRequest(kcl *kgo.Client, orderID string, ctx context.Context) {
+	orderShippingRequestPayload := OrderShippingRequest{orderID}
+
+	orderShippingRequestRecord, err := json.Marshal(orderShippingRequestPayload)
+	if err != nil {
+		log.Printf("Error marshalling order request: %v", err)
+		return
+	}
+
+	record := &kgo.Record{
+		Topic: orderShippingRequestTopic,
+		Value: orderShippingRequestRecord,
+	}
+
+	kcl.Produce(ctx, record, func(_ *kgo.Record, err error) {
+		if err != nil {
+			log.Printf("record had a produce error: %v\n", err)
+		}
+
+		log.Printf("Produced record to topic %s", orderShippingRequestTopic)
 	})
 }
 
@@ -84,76 +115,31 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 	}
 }
 
-// func consume(kcl *kgo.Client, ctx context.Context) {
-// 	for {
-// 		events := kcl.PollFetches(ctx)
-// 		if err := events.Err(); err != nil {
-// 			log.Printf("Error fetching events: %v", err)
-// 			continue
-// 		}
-//
-// 		events.EachRecord(func(r *kgo.Record) {
-// 			log.Printf("Processing")
-//
-// 			orderShippingRequest := &OrderShippingRequest{}
-// 			if err := json.Unmarshal(r.Value, orderShippingRequest); err != nil {
-// 				log.Printf("Error unmarshalling record: %v", err)
-// 				return
-// 			}
-// 			time.Sleep(time.Second * 5)
-//
-// 			orderShippingStatusInDelivery := &OrderShippingStatus{
-// 				OrderID: orderShippingRequest.OrderID,
-// 				Status:  "In Delivery",
-// 			}
-//
-// 			orderShippingStatusDeliveryBytes, err := json.Marshal(orderShippingStatusInDelivery)
-// 			if err != nil {
-// 				log.Printf("Error marshalling order shipping status: %v", err)
-// 				return
-// 			}
-//
-// 			record := &kgo.Record{
-// 				Topic: orderRequestTopic,
-// 				Value: orderShippingStatusDeliveryBytes,
-// 			}
-//
-// 			kcl.Produce(ctx, record, func(_ *kgo.Record, err error) {
-// 				if err != nil {
-// 					log.Printf("record had a produce error: %v\n", err)
-// 				}
-//
-// 				log.Printf("Produced record to topic %s", orderRequestTopic)
-// 			})
-//
-// 			time.Sleep(time.Second * 10)
-//
-// 			orderShippingStatusDelivered := &OrderShippingStatus{
-// 				OrderID: orderShippingRequest.OrderID,
-// 				Status:  "Delivered",
-// 			}
-//
-// 			orderShippingStatusDeliveredBytes, err := json.Marshal(orderShippingStatusDelivered)
-// 			if err != nil {
-// 				log.Printf("Error marshalling order shipping status: %v", err)
-// 				return
-// 			}
-//
-// 			record = &kgo.Record{
-// 				Topic: orderRequestTopic,
-// 				Value: orderShippingStatusDeliveredBytes,
-// 			}
-//
-// 			kcl.Produce(ctx, record, func(_ *kgo.Record, err error) {
-// 				if err != nil {
-// 					log.Printf("record had a produce error: %v\n", err)
-// 				}
-//
-// 				log.Printf("Produced record to topic %s", orderRequestTopic)
-// 			})
-// 		})
-// 	}
-// }
+func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
+	for {
+		events := kcl.PollFetches(ctx)
+		if err := events.Err(); err != nil {
+			log.Printf("Error fetching events: %v", err)
+			continue
+		}
+
+		events.EachRecord(func(r *kgo.Record) {
+			log.Printf("Processing record")
+
+			orderRequestResponse := &OrderRequestResponse{}
+			if err := json.Unmarshal(r.Value, orderRequestResponse); err != nil {
+				log.Printf("Error unmarshalling record: %v", err)
+				return
+			}
+
+			updateOrder(conn, orderRequestResponse.OrderID, orderRequestResponse.RequestStatus)
+			if orderRequestResponse.RequestStatus == "accepted" {
+				sendOrderShippingRequest(kcl, orderRequestResponse.OrderID, ctx)
+				log.Printf("Sent shipping request")
+			}
+		})
+	}
+}
 
 func connectToDB() (*pgx.Conn, error) {
 	conn, err := pgx.Connect(context.Background(), dbConnString)
@@ -186,6 +172,16 @@ func insertOrder(conn *pgx.Conn, orderID uuid.UUID, status string, products map[
 	return nil
 }
 
+func updateOrder(conn *pgx.Conn, orderID string, status string) error {
+	log.Print("Starting updating")
+	query := fmt.Sprintf("UPDATE orders set status=$1 WHERE id=$2)")
+	_, err := conn.Exec(context.Background(), query, orderID, status)
+	if err != nil {
+		return fmt.Errorf("unable to insert: %v", err)
+	}
+	return nil
+}
+
 func main() {
 	log.Printf("Starting order service")
 
@@ -212,7 +208,6 @@ func main() {
 	}
 
 	defer kcl.Close()
+	go consume(kcl, conn, ctx)
 	httpServer(conn, kcl, ctx)
-
-	// consume(kcl, ctx)
 }
