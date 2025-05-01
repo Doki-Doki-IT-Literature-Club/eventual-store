@@ -19,19 +19,41 @@ const base2Address = "http://base-2-base-2-1:8002"
 const kafkaAddress = "kafka:9092"
 const dbConnString = "postgres://user:password@postgres:5432/mydb"
 const orderShippingRequestTopic = "order-shipping-request"
-const orderShippingStatusTopic = "order-shipping-status"
+const orderRequestTopic = "order-request"
 
-type OrderShippingRequest struct {
-	OrderID string `json:"order_id"`
-}
-
-type OrderShippingStatus struct {
-	OrderID string `json:"order_id"`
-	Status  string `json:"status"`
+type OrderRequest struct {
+	OrderID  string         `json:"order_id"`
+	Products map[string]int `json:"products"`
 }
 
 type CreateOrderPayload struct {
 	Products map[string]int `json:"products"`
+}
+
+func sendOrderRequest(kcl *kgo.Client, orderID uuid.UUID, products map[string]int, ctx context.Context) {
+	orderRequestPayload := &OrderRequest{
+		OrderID:  orderID.String(),
+		Products: products,
+	}
+
+	orderRequestRecord, err := json.Marshal(orderRequestPayload)
+	if err != nil {
+		log.Printf("Error marshalling order request: %v", err)
+		return
+	}
+
+	record := &kgo.Record{
+		Topic: orderRequestTopic,
+		Value: orderRequestRecord,
+	}
+
+	kcl.Produce(ctx, record, func(_ *kgo.Record, err error) {
+		if err != nil {
+			log.Printf("record had a produce error: %v\n", err)
+		}
+
+		log.Printf("Produced record to topic %s", orderRequestTopic)
+	})
 }
 
 func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
@@ -45,16 +67,12 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 		}
 		orderID := uuid.New()
 		insertOrder(conn, orderID, "new", payload.Products)
+		sendOrderRequest(kcl, orderID, payload.Products, ctx)
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(exmpl.A))
 	})
 
-	// http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-	// 	log.Printf("Received request: %s %s", r.Method, r.URL.Path)
-	// 	w.WriteHeader(http.StatusOK)
-	// 	w.Write([]byte(exmpl.A))
-	// })
 	port := 8002
 	log.Printf("Starting server on port %d", port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
@@ -96,7 +114,7 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 // 			}
 //
 // 			record := &kgo.Record{
-// 				Topic: orderShippingStatusTopic,
+// 				Topic: orderRequestTopic,
 // 				Value: orderShippingStatusDeliveryBytes,
 // 			}
 //
@@ -105,7 +123,7 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 // 					log.Printf("record had a produce error: %v\n", err)
 // 				}
 //
-// 				log.Printf("Produced record to topic %s", orderShippingStatusTopic)
+// 				log.Printf("Produced record to topic %s", orderRequestTopic)
 // 			})
 //
 // 			time.Sleep(time.Second * 10)
@@ -122,7 +140,7 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 // 			}
 //
 // 			record = &kgo.Record{
-// 				Topic: orderShippingStatusTopic,
+// 				Topic: orderRequestTopic,
 // 				Value: orderShippingStatusDeliveredBytes,
 // 			}
 //
@@ -131,7 +149,7 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 // 					log.Printf("record had a produce error: %v\n", err)
 // 				}
 //
-// 				log.Printf("Produced record to topic %s", orderShippingStatusTopic)
+// 				log.Printf("Produced record to topic %s", orderRequestTopic)
 // 			})
 // 		})
 // 	}
@@ -145,7 +163,11 @@ func connectToDB() (*pgx.Conn, error) {
 	return conn, nil
 }
 
-func createTables(conn *pgx.Conn) error {
+func initDB(conn *pgx.Conn) error {
+	// _, err := conn.Exec(context.Background(), "CREATE DATABASE IF NOT EXISTS mydb")
+	// if err != nil {
+	// 	return fmt.Errorf("unable to create database: %v", err)
+	// }
 	_, err := conn.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, status TEXT, products TEXT)")
 	if err != nil {
 		return fmt.Errorf("unable to create table: %v", err)
@@ -185,7 +207,7 @@ func main() {
 	}
 
 	defer conn.Close(ctx)
-	if err := createTables(conn); err != nil {
+	if err := initDB(conn); err != nil {
 		log.Fatalf("Error creating test table: %v", err)
 	}
 
