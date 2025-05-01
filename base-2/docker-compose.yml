@@ -1,0 +1,15 @@
+services:
+  base-2:
+    image: base
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./:/app
+    networks:
+      - sharednet
+
+networks:
+  sharednet:
+    name: shared-network
+    external: true
