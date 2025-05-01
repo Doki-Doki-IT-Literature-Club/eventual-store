@@ -1,13 +1,11 @@
 services:
-  base-2:
+  inventory-service:
     image: base
     build:
       context: .
       dockerfile: Dockerfile.dev
     volumes:
       - ./:/app
-    ports:
-      - 8002:8002
     networks:
       - sharednet
 

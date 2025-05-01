@@ -23,6 +23,39 @@ type OrderRequestResult struct {
 	RequestStatus string `json:"request_status"`
 }
 
+func main() {
+	log.Printf("Starting inventory service")
+
+	ctx := context.Background()
+	kcl, err := kgo.NewClient(
+		kgo.SeedBrokers(kafkaAddress),
+		kgo.AllowAutoTopicCreation(),
+		kgo.ConsumerGroup("inventory-group"),
+		kgo.ConsumeTopics(orderRequestTopic),
+	)
+
+	if err != nil {
+		log.Fatalf("Error creating Kafka client: %v", err)
+	}
+
+	defer kcl.Close()
+
+	consume(kcl, ctx)
+}
+
+func processOrderRequest(orderRequest *OrderRequest) *OrderRequestResult {
+	status := "accepted"
+	if n := rand.Intn(2); n == 0 {
+		status = "rejected"
+	}
+
+	return &OrderRequestResult{
+		OrderID:       orderRequest.OrderID,
+		RequestStatus: status,
+	}
+
+}
+
 func consume(kcl *kgo.Client, ctx context.Context) {
 	for {
 		events := kcl.PollFetches(ctx)
@@ -40,15 +73,7 @@ func consume(kcl *kgo.Client, ctx context.Context) {
 				return
 			}
 
-			status := "accepted"
-			if n := rand.Intn(2); n == 0 {
-				status = "rejected"
-			}
-
-			orderRequestResult := &OrderRequestResult{
-				OrderID:       orderRequest.OrderID,
-				RequestStatus: status,
-			}
+			orderRequestResult := processOrderRequest(orderRequest)
 
 			orderRequestResultBytes, err := json.Marshal(orderRequestResult)
 			if err != nil {
@@ -70,24 +95,4 @@ func consume(kcl *kgo.Client, ctx context.Context) {
 			})
 		})
 	}
-}
-
-func main() {
-	log.Printf("Starting order service")
-
-	ctx := context.Background()
-	kcl, err := kgo.NewClient(
-		kgo.SeedBrokers(kafkaAddress),
-		kgo.AllowAutoTopicCreation(),
-		kgo.ConsumerGroup("inventory-group"),
-		kgo.ConsumeTopics(orderRequestTopic),
-	)
-
-	if err != nil {
-		log.Fatalf("Error creating Kafka client: %v", err)
-	}
-
-	defer kcl.Close()
-
-	consume(kcl, ctx)
 }
