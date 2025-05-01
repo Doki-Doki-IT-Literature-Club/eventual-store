@@ -1,0 +1,18 @@
+services:
+  base-2:
+    image: base
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./:/app
+    ports:
+      - 8002:8002
+    networks:
+      - sharednet
+
+networks:
+  sharednet:
+    name: shared-network
+    external: true
+
