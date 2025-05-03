@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -186,39 +187,91 @@ func processOutboxBatch(ctx context.Context, conn *pgx.Conn, kcl *kgo.Client) er
 	}
 
 	publishedEventsIds := make([]string, 0)
+	failedEventsIds := make([]string, 0)
 
-	for _, event := range eventsToPublish {
-		record := &kgo.Record{
-			Topic: orderRequestResultTopic,
-			Value: event.Payload,
-		}
-
-		if event.EventType == "OrderRequestResult" {
-			kcl.Produce(ctx, record, func(_ *kgo.Record, err error) {
-				if err != nil {
-					log.Printf("record had a produce error: %v\n", err)
-					return
-				}
-				log.Printf("Produced record to topic %s", orderRequestResultTopic)
-			})
-			publishedEventsIds = append(publishedEventsIds, event.ID.String())
-		} else {
+	recordsToPublish := make([]*kgo.Record, len(eventsToPublish))
+	for i, event := range eventsToPublish {
+		topic := ""
+		switch event.EventType {
+		case "OrderRequestResult":
+			topic = orderRequestResultTopic
+		default:
 			log.Printf("Unknown event type: %s", event.EventType)
 			continue
 		}
 
+		record := &kgo.Record{
+			Topic: topic,
+			Value: event.Payload,
+			Headers: []kgo.RecordHeader{
+				{Key: "outbox_id", Value: []byte(event.ID.String())},
+			},
+		}
+		recordsToPublish[i] = record
 	}
 
-	updateSQL := `
+	// order is not important
+	results := kcl.ProduceSync(ctx, recordsToPublish...)
+	for _, result := range results {
+		outboxIdHeaderIndex := slices.IndexFunc(result.Record.Headers, func(h kgo.RecordHeader) bool {
+			return string(h.Key) == "outbox_id"
+		})
+
+		if outboxIdHeaderIndex == -1 {
+			log.Printf("No outbox_id header found in produced record")
+			continue
+		}
+
+		if result.Err != nil {
+			failedEventsIds = append(failedEventsIds, string(result.Record.Headers[outboxIdHeaderIndex].Value))
+			log.Printf("Error producing record: %v", result.Err)
+			continue
+		}
+
+		outboxId := string(result.Record.Headers[outboxIdHeaderIndex].Value)
+		publishedEventsIds = append(publishedEventsIds, outboxId)
+	}
+
+	updatePubloshedSQL := `
 	UPDATE outbox_events
 	SET status = 'PUBLISHED', published_at = NOW()
 	WHERE id = ANY($1)
 	`
 
-	_, err = conn.Exec(ctx, updateSQL, publishedEventsIds)
+	updateFailedSQL := `
+	UPDATE outbox_events
+	SET status = 'FAILED', published_at = NOW()
+	WHERE id = ANY($1)
+	`
+
+	tx, err := conn.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("error updating outbox events: %w", err)
+		return fmt.Errorf("error starting transaction: %w", err)
 	}
+	defer tx.Rollback(ctx)
+
+	if len(publishedEventsIds) > 0 {
+		_, err = tx.Exec(ctx, updatePubloshedSQL, publishedEventsIds)
+		if err != nil {
+			return fmt.Errorf("error updating published events: %w", err)
+		}
+		log.Printf("Updated %d events to PUBLISHED", len(publishedEventsIds))
+	}
+
+	if len(failedEventsIds) > 0 {
+		_, err = tx.Exec(ctx, updateFailedSQL, failedEventsIds)
+		if err != nil {
+			return fmt.Errorf("error updating failed events: %w", err)
+		}
+		log.Printf("Updated %d events to FAILED", len(failedEventsIds))
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("error committing transaction: %w", err)
+	}
+
+	log.Printf("Transaction committed")
+
 	return nil
 
 }
