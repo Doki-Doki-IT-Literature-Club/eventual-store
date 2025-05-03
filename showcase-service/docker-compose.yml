@@ -1,0 +1,17 @@
+services:
+  showcase-service:
+    image: base
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./:/app
+    ports:
+      - 8003:80
+    networks:
+      - sharednet
+
+networks:
+  sharednet:
+    name: shared-network
+    external: true
