@@ -60,7 +60,6 @@ type Order struct {
 }
 
 func main() {
-	shared.Dome()
 	log.Printf("Starting order service")
 
 	ctx := context.Background()
@@ -107,7 +106,10 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 			return
 		}
 		orderID := uuid.New()
-		upsertOrder(ctx, conn, &Order{orderID.String(), "new", payload.Products})
+		err := upsertOrder(ctx, conn, &Order{orderID.String(), "new", payload.Products})
+		if err != nil {
+			log.Fatal(err.Error())
+		}
 		sendOrderRequest(kcl, orderID, payload.Products, ctx)
 
 		w.WriteHeader(http.StatusOK)
@@ -176,21 +178,25 @@ func sendOrderShippingRequest(kcl *kgo.Client, orderID string, ctx context.Conte
 
 func upsertOrder(ctx context.Context, conn *pgx.Conn, order *Order) error {
 	log.Print("Starting upserting")
-
 	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("Could not begin transaction: %s", err.Error())
 	}
 	defer tx.Rollback(ctx)
-
 	updateOrderQ := `
     INSERT INTO orders (id, status, products) 
     VALUES ($1, $2, $3)
 
     ON CONFLICT(id)
-    DO UPDATE SET status=$1 
+    DO UPDATE SET status=$2
     `
-	_, err = tx.Exec(context.Background(), updateOrderQ, order.Status, order.ID)
+
+	productBytes, err := json.Marshal(order.Products)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.Exec(context.Background(), updateOrderQ, order.ID, order.Status, productBytes)
 	if err != nil {
 		return fmt.Errorf("unable to upsert: %v", err)
 	}
@@ -231,6 +237,7 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 					return
 				}
 
+				// TODO: get order fist, pass products
 				err := upsertOrder(ctx, conn, &Order{ID: orderRequestResponse.OrderID, Status: orderRequestResponse.RequestStatus})
 				if err != nil {
 					log.Printf(err.Error())
@@ -248,6 +255,7 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 					return
 				}
 
+				// TODO: get order fist, pass products
 				err := upsertOrder(ctx, conn, &Order{ID: orderShippingStatus.OrderID, Status: orderShippingStatus.Status})
 				if err != nil {
 					log.Printf(err.Error())
