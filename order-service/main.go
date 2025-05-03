@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
-
 	"fmt"
+	"log"
 	"net/http"
+	"time"
 
 	"github.com/Doki-Doki-IT-Literature-Club/sops/order-service/pkg/exmpl"
+	"github.com/Doki-Doki-IT-Literature-Club/sops/shared"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -25,6 +26,9 @@ const (
 	orderShippingStatusTopic  = "order-shipping-status"
 	orderRequestTopic         = "order-request"
 	orderRequestResultTopic   = "order-request-result"
+
+	orderUpdateOutboxEventType = "OrderUpdate"
+	ordersStateTopic           = "order-state"
 )
 
 type OrderShippingStatus struct {
@@ -47,6 +51,78 @@ type CreateOrderPayload struct {
 
 type OrderShippingRequest struct {
 	OrderID string `json:"order_id"`
+}
+
+type Order struct {
+	ID       string         `json:"id"`
+	Status   string         `json:"status"`
+	Products map[string]int `json:"products"`
+}
+
+func main() {
+	shared.Dome()
+	log.Printf("Starting order service")
+
+	ctx := context.Background()
+	kcl, err := kgo.NewClient(
+		kgo.SeedBrokers(kafkaAddress),
+		kgo.AllowAutoTopicCreation(),
+		kgo.ConsumerGroup("order-group"),
+		kgo.ConsumeTopics(
+			orderRequestResultTopic,
+			orderShippingStatusTopic,
+		),
+	)
+
+	if err != nil {
+		log.Fatalf("Error creating Kafka client: %v", err)
+	}
+
+	ensureDBExists(dbConnString, dbName)
+
+	conn, err := connectToDB()
+	if err != nil {
+		log.Fatalf("Error connecting to database: %v", err)
+	}
+
+	defer conn.Close(ctx)
+
+	if err := initDB(conn); err != nil {
+		log.Fatalf("Error creating test table: %v", err)
+	}
+
+	defer kcl.Close()
+	go consume(kcl, conn, ctx)
+	go shared.ConsumeOutbox(ctx, conn, kcl, time.Second, map[string]string{orderUpdateOutboxEventType: ordersStateTopic})
+	httpServer(conn, kcl, ctx)
+}
+
+func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
+	http.HandleFunc("POST /orders", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
+		payload := CreateOrderPayload{}
+		if json.NewDecoder(r.Body).Decode(&payload) != nil {
+			w.WriteHeader(http.StatusTeapot)
+			w.Write([]byte(exmpl.A))
+			return
+		}
+		orderID := uuid.New()
+		upsertOrder(ctx, conn, &Order{orderID.String(), "new", payload.Products})
+		sendOrderRequest(kcl, orderID, payload.Products, ctx)
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(orderID.String()))
+	})
+
+	port := 8002
+	log.Printf("Starting server on port %d", port)
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
+		log.Fatalf("Server error: %v", err)
+
+		if err != nil {
+			panic(err)
+		}
+	}
 }
 
 func sendOrderRequest(kcl *kgo.Client, orderID uuid.UUID, products map[string]int, ctx context.Context) {
@@ -98,32 +174,41 @@ func sendOrderShippingRequest(kcl *kgo.Client, orderID string, ctx context.Conte
 	})
 }
 
-func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
-	http.HandleFunc("POST /orders", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
-		payload := CreateOrderPayload{}
-		if json.NewDecoder(r.Body).Decode(&payload) != nil {
-			w.WriteHeader(http.StatusTeapot)
-			w.Write([]byte(exmpl.A))
-			return
-		}
-		orderID := uuid.New()
-		insertOrder(conn, orderID, "new", payload.Products)
-		sendOrderRequest(kcl, orderID, payload.Products, ctx)
+func upsertOrder(ctx context.Context, conn *pgx.Conn, order *Order) error {
+	log.Print("Starting upserting")
 
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(orderID.String()))
-	})
-
-	port := 8002
-	log.Printf("Starting server on port %d", port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
-		log.Fatalf("Server error: %v", err)
-
-		if err != nil {
-			panic(err)
-		}
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("Could not begin transaction: %s", err.Error())
 	}
+	defer tx.Rollback(ctx)
+
+	updateOrderQ := `
+    INSERT INTO orders (id, status, products) 
+    VALUES ($1, $2, $3)
+
+    ON CONFLICT(id)
+    DO UPDATE SET status=$1 
+    `
+	_, err = tx.Exec(context.Background(), updateOrderQ, order.Status, order.ID)
+	if err != nil {
+		return fmt.Errorf("unable to upsert: %v", err)
+	}
+
+	data, err := json.Marshal(order)
+	if err != nil {
+		return err
+	}
+
+	err = shared.InsertOutboxEvent(ctx, tx, "Order", order.ID, orderUpdateOutboxEventType, data)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("unable to commit: %v", err)
+	}
+	return nil
 }
 
 func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
@@ -146,7 +231,7 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 					return
 				}
 
-				err := updateOrder(conn, orderRequestResponse.OrderID, orderRequestResponse.RequestStatus)
+				err := upsertOrder(ctx, conn, &Order{ID: orderRequestResponse.OrderID, Status: orderRequestResponse.RequestStatus})
 				if err != nil {
 					log.Printf(err.Error())
 				}
@@ -163,7 +248,7 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 					return
 				}
 
-				err := updateOrder(conn, orderShippingStatus.OrderID, orderShippingStatus.Status)
+				err := upsertOrder(ctx, conn, &Order{ID: orderShippingStatus.OrderID, Status: orderShippingStatus.Status})
 				if err != nil {
 					log.Printf(err.Error())
 				}
@@ -188,64 +273,35 @@ func initDB(conn *pgx.Conn) error {
 	if err != nil {
 		return fmt.Errorf("unable to create table: %v", err)
 	}
+
+	outboxTableSQL := `
+	CREATE TABLE IF NOT EXISTS outbox_events (
+		id UUID PRIMARY KEY,
+		aggregate_type TEXT NOT NULL,
+		aggregate_id TEXT NOT NULL,
+		event_type TEXT NOT NULL,
+		payload JSONB NOT NULL,
+		status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, PUBLISHED, FAILED
+		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+		published_at TIMESTAMPTZ NULL
+	);`
+
+	_, err = conn.Exec(context.Background(), outboxTableSQL)
+	if err != nil {
+		return fmt.Errorf("unable to create table: %v", err)
+	}
+
+	outboxIndexSQL := `
+	CREATE INDEX IF NOT EXISTS idx_outbox_events_status_created_at
+	ON outbox_events (status, created_at);
+	`
+
+	_, err = conn.Exec(context.Background(), outboxIndexSQL)
+	if err != nil {
+		return fmt.Errorf("unable to create index: %v", err)
+	}
+
 	return nil
-}
-
-func insertOrder(conn *pgx.Conn, orderID uuid.UUID, status string, products map[string]int) error {
-	log.Print("Starting inserting")
-	query := fmt.Sprintf("INSERT INTO orders (id, status, products) VALUES ($1, $2, $3)")
-	productsBytes, err := json.Marshal(products)
-	_, err = conn.Exec(context.Background(), query, orderID.String(), status, string(productsBytes))
-	if err != nil {
-		return fmt.Errorf("unable to insert: %v", err)
-	}
-	return nil
-}
-
-func updateOrder(conn *pgx.Conn, orderID string, status string) error {
-	log.Print("Starting updating")
-	query := "UPDATE orders set status=$1 WHERE id=$2"
-	_, err := conn.Exec(context.Background(), query, status, orderID)
-	if err != nil {
-		return fmt.Errorf("unable to update: %v", err)
-	}
-	return nil
-}
-
-func main() {
-	log.Printf("Starting order service")
-
-	ctx := context.Background()
-	kcl, err := kgo.NewClient(
-		kgo.SeedBrokers(kafkaAddress),
-		kgo.AllowAutoTopicCreation(),
-		kgo.ConsumerGroup("order-group"),
-		kgo.ConsumeTopics(
-			orderRequestResultTopic,
-			orderShippingStatusTopic,
-		),
-	)
-
-	if err != nil {
-		log.Fatalf("Error creating Kafka client: %v", err)
-	}
-
-	ensureDBExists(dbConnString, dbName)
-
-	conn, err := connectToDB()
-	if err != nil {
-		log.Fatalf("Error connecting to database: %v", err)
-	}
-
-	defer conn.Close(ctx)
-
-	if err := initDB(conn); err != nil {
-		log.Fatalf("Error creating test table: %v", err)
-	}
-
-	defer kcl.Close()
-	go consume(kcl, conn, ctx)
-	httpServer(conn, kcl, ctx)
 }
 
 func ensureDBExists(dbConnString string, dbName string) {

@@ -2,10 +2,14 @@ module github.com/Doki-Doki-IT-Literature-Club/sops/inventory-service
 
 go 1.23.4
 
+
 require (
 	github.com/google/uuid v1.6.0
 	github.com/twmb/franz-go v1.18.1
+    github.com/Doki-Doki-IT-Literature-Club/sops/shared v1.0.0
 )
+
+replace "github.com/Doki-Doki-IT-Literature-Club/sops/shared" => "../shared"
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
