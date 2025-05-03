@@ -1,5 +1,5 @@
 services:
-  base-2:
+  order-service:
     image: base
     build:
       context: .

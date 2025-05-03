@@ -4,21 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	// "time"
 
-	"base/pkg/exmpl"
 	"fmt"
 	"net/http"
 
+	"github.com/Doki-Doki-IT-Literature-Club/sops/order-service/pkg/exmpl"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 const (
 	base2Address              = "http://base-2-base-2-1:8002"
 	kafkaAddress              = "kafka:9092"
-	dbConnString              = "postgres://user:password@postgres:5432/mydb"
+	dbConnString              = "postgres://user:password@postgres:5432/"
+	dbName                    = "orders"
 	orderShippingRequestTopic = "order-shipping-request"
 	orderShippingStatusTopic  = "order-shipping-status"
 	orderRequestTopic         = "order-request"
@@ -174,7 +176,7 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 }
 
 func connectToDB() (*pgx.Conn, error) {
-	conn, err := pgx.Connect(context.Background(), dbConnString)
+	conn, err := pgx.Connect(context.Background(), dbConnString+"/"+dbName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
@@ -182,10 +184,6 @@ func connectToDB() (*pgx.Conn, error) {
 }
 
 func initDB(conn *pgx.Conn) error {
-	// _, err := conn.Exec(context.Background(), "CREATE DATABASE IF NOT EXISTS mydb")
-	// if err != nil {
-	// 	return fmt.Errorf("unable to create database: %v", err)
-	// }
 	_, err := conn.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, status TEXT, products TEXT)")
 	if err != nil {
 		return fmt.Errorf("unable to create table: %v", err)
@@ -232,12 +230,15 @@ func main() {
 		log.Fatalf("Error creating Kafka client: %v", err)
 	}
 
+	ensureDBExists(dbConnString, dbName)
+
 	conn, err := connectToDB()
 	if err != nil {
 		log.Fatalf("Error connecting to database: %v", err)
 	}
 
 	defer conn.Close(ctx)
+
 	if err := initDB(conn); err != nil {
 		log.Fatalf("Error creating test table: %v", err)
 	}
@@ -245,4 +246,28 @@ func main() {
 	defer kcl.Close()
 	go consume(kcl, conn, ctx)
 	httpServer(conn, kcl, ctx)
+}
+
+func ensureDBExists(dbConnString string, dbName string) {
+	initialDbConnString := dbConnString + "postgres"
+	conn, err := pgx.Connect(context.Background(), initialDbConnString)
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v", err)
+	}
+	defer conn.Close(context.Background())
+
+	_, err = conn.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", pgx.Identifier{dbName}.Sanitize()))
+	if err != nil {
+		pgErr, ok := err.(*pgconn.PgError)
+		// 42P04 = duplicate_database'
+		if ok && pgErr.Code == "42P04" {
+			log.Printf("Database '%s' exists.\n", dbName)
+		} else {
+			log.Fatalf("Failed to create database '%s': %v\n", dbName, err)
+		}
+	} else {
+		log.Printf("Database '%s' created.\n", dbName)
+	}
+
+	log.Printf("Database '%s' checked.\n", dbName)
 }

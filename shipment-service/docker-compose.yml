@@ -1,5 +1,5 @@
 services:
-  shipment:
+  shipment-service:
     image: base
     build:
       context: .

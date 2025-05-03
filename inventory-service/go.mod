@@ -1,4 +1,4 @@
-module base
+module github.com/Doki-Doki-IT-Literature-Club/sops/inventory-service
 
 go 1.23.4
 
