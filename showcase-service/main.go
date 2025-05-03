@@ -137,7 +137,7 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 					return
 				}
 
-				err := updateOrder(conn, orderRequestResponse.OrderID, orderRequestResponse.RequestStatus)
+				err := updateOrder(conn, ctx, *order)
 				if err != nil {
 					log.Printf(err.Error())
 				}
@@ -195,7 +195,7 @@ func GetOrders(conn *pgx.Conn, ctx context.Context) ([]Order, error) {
 	}
 	defer rows.Close()
 
-	var orders []Order
+	orders := make([]Order, 0, 0)
 	for rows.Next() {
 		var order Order
 		var products string
