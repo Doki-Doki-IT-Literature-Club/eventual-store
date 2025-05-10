@@ -3,6 +3,6 @@ curl http://localhost:8002/orders \
   -H "Content-Type: application/json" \
   -d '{
     "products": {
-      "product1": 1
+      "product3": 5
     }
 }'

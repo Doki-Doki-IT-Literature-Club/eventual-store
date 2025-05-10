@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Doki-Doki-IT-Literature-Club/sops/order-service/pkg/exmpl"
 	"github.com/Doki-Doki-IT-Literature-Club/sops/shared"
 
 	"github.com/google/uuid"
@@ -76,7 +75,7 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 		payload := CreateOrderPayload{}
 		if json.NewDecoder(r.Body).Decode(&payload) != nil {
 			w.WriteHeader(http.StatusTeapot)
-			w.Write([]byte(exmpl.A))
+			w.Write([]byte("Invalid payload"))
 			return
 		}
 		orderID := uuid.New()

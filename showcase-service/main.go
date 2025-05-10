@@ -155,13 +155,28 @@ func connectToDB() (*pgx.Conn, error) {
 }
 
 func initDB(conn *pgx.Conn) error {
-	tableSQL := `
+	ordersTableSQL := `
 		CREATE TABLE IF NOT EXISTS orders
 	  (id TEXT PRIMARY KEY, status TEXT, products TEXT)`
-	_, err := conn.Exec(context.Background(), tableSQL)
+	tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
+
+	if err != nil {
+		return fmt.Errorf("unable to start transaction: %v", err)
+	}
+	defer tx.Rollback(context.Background())
+
+	_, err = tx.Exec(context.Background(), ordersTableSQL)
+
 	if err != nil {
 		return fmt.Errorf("unable to create table: %v", err)
 	}
+
+	// inventoryTableSQL := `
+	// 	CREATE TABLE IF NOT EXISTS inventory
+	//   (id TEXT PRIMARY KEY, name TEXT, description TEXT, price NUMERIC, quantity NUMERIC)`
+
+	err = tx.Commit(context.Background())
+
 	return nil
 }
 
