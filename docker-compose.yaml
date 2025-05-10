@@ -1,0 +1,169 @@
+services:
+  inventory-service:
+    image: inventory-service
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./inventory-service:/app
+      - ./shared:/shared
+    networks:
+      - sharednet
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  order-service:
+    image: order-service
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./order-service:/app
+      - ./shared:/shared
+    ports:
+      - 8002:8002
+    networks:
+      - sharednet
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  showcase-service:
+    image: showcase-service
+    build:
+      context: ./showcase-service
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./showcase-service:/app
+      - ./shared:/shared
+    ports:
+      - 8003:80
+    networks:
+      - sharednet
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  shipment-service:
+    image: shipment-service
+    build:
+      context: ./shipment-service
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./shipment-service:/app
+      - ../shared:/shared
+    networks:
+      - sharednet
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # POSTGRESQL DATABASE
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres-cluster/data:/var/lib/postgresql/data
+    networks:
+      - sharednet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    user: '$UID:$GID'
+    ports:
+      - "8081:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "root@mail.com"
+      PGADMIN_DEFAULT_PASSWORD: "1234"
+    depends_on:
+      - postgres
+    volumes:
+      - ./postgres-cluster/pgadmin-data:/var/lib/pgadmin
+    networks:
+      - sharednet
+
+  # END POSTGRESQL DATABASE
+
+  # KAFKA CLUSTER
+  
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - ./zookeeper-cluster/data:/var/lib/zookeeper/data
+      - ./zookeeper-cluster/log:/var/lib/zookeeper/log
+    ports:
+      - "2181:2181"
+    networks:
+      - sharednet
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
+    hostname: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "29092:29092"
+    volumes:
+      - ./kafka-cluster/data:/var/lib/kafka/data
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:9092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - sharednet
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - sharednet
+
+  # END KAFKA CLUSTER
+
+networks:
+  sharednet:
+    name: shared-network
+
