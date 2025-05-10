@@ -4,15 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"math/rand"
 	"time"
 
 	"github.com/Doki-Doki-IT-Literature-Club/sops/shared"
 	"github.com/jackc/pgx/v5"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
-
-const orderRequestResultOutboxEventType = "OrderRequestResult"
 
 func main() {
 	log.Printf("Starting inventory service")
@@ -25,7 +22,16 @@ func main() {
 	}
 	defer conn.Close(ctx)
 
-	initDB(conn)
+	err = initDB(conn)
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+
+	log.Println("waht the fukc?")
+	err = fillDB(conn, ctx)
+	if err != nil {
+		log.Fatalf("Failed to fill database: %v", err)
+	}
 
 	kcl, err := kgo.NewClient(
 		kgo.SeedBrokers(shared.KafkaAddress),
@@ -43,21 +49,60 @@ func main() {
 	go consume(ctx, kcl, conn)
 
 	pollInterval := 5 * time.Second
-	shared.ConsumeOutbox(ctx, conn, kcl, pollInterval, map[string]string{orderRequestResultOutboxEventType: shared.OrderRequestResultTopic})
+	shared.ConsumeOutbox(ctx, conn, kcl, pollInterval, map[string]string{
+		orderRequestResultOutboxEventType: shared.OrderRequestResultTopic,
+		inventoryItemOutboxEventType:      shared.InventoryStateTopic,
+	})
 }
 
-func processOrderRequest(orderRequest *shared.OrderRequestEvent) *shared.OrderRequestResultEvent {
-	status := "accepted"
-	reason := "sufficient stock"
-	if n := rand.Intn(2); n == 0 {
-		status = "rejected"
-		reason = "insufficient stock"
+// potential race condition
+func processOrderRequest(con *pgx.Conn, orderRequest *shared.OrderRequestEvent) *shared.OrderRequestResultEvent {
+	log.Printf("Processing order request: %v, %v\n", orderRequest.OrderID, orderRequest.Products)
+
+	orderedItemsIds := make([]string, len(orderRequest.Products))
+	for id := range orderRequest.Products {
+		orderedItemsIds = append(orderedItemsIds, id)
 	}
+
+	items, err := getInventoryItems(con, context.Background(), orderedItemsIds)
+	if err != nil {
+		log.Printf("Error getting inventory items: %v", err)
+		return &shared.OrderRequestResultEvent{
+			OrderID:       orderRequest.OrderID,
+			RequestStatus: "rejected",
+			Reason:        "internal error",
+		}
+	}
+
+	for i := range len(items) {
+		item := &items[i]
+		if item.Amount < orderRequest.Products[item.ID] {
+			return &shared.OrderRequestResultEvent{
+				OrderID:       orderRequest.OrderID,
+				RequestStatus: "rejected",
+				Reason:        "insufficient stock",
+			}
+		}
+
+		item.Amount -= orderRequest.Products[item.ID]
+	}
+
+	// TODO: should be single transaction
+	err = updateInventoryItems(con, context.Background(), items)
+	if err != nil {
+		log.Printf("Error updating inventory items: %v", err)
+		return &shared.OrderRequestResultEvent{
+			OrderID:       orderRequest.OrderID,
+			RequestStatus: "rejected",
+			Reason:        "internal error",
+		}
+	}
+	log.Printf("Updated inventory items: %v\n", items)
 
 	return &shared.OrderRequestResultEvent{
 		OrderID:       orderRequest.OrderID,
-		RequestStatus: status,
-		Reason:        reason,
+		RequestStatus: "success",
+		Reason:        "sufficient stock",
 	}
 
 }
@@ -100,7 +145,8 @@ func handleOrderRequestTopicEvent(ctx context.Context, kcl *kgo.Client, conn *pg
 	}
 	defer tx.Rollback(context.Background())
 
-	orderRequestResult := processOrderRequest(orderRequest)
+	// TODO: single transaction
+	orderRequestResult := processOrderRequest(conn, orderRequest)
 
 	orderRequestResultBytes, err := json.Marshal(orderRequestResult)
 	if err != nil {

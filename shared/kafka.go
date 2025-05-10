@@ -20,7 +20,7 @@ const OrderRequestTopic = "order-request"
 
 type OrderRequestEvent struct {
 	OrderID  string         `json:"order_id"`
-	Products map[string]int `json:"products"`
+	Products map[string]int `json:"products"` // product_id -> amount
 }
 
 const OrderRequestResultTopic = "order-request-result"
@@ -37,4 +37,11 @@ type OrderStateEvent struct {
 	ID       string         `json:"id"`
 	Status   string         `json:"status"`
 	Products map[string]int `json:"products"`
+}
+
+const InventoryStateTopic = "inventory-state"
+
+type InventoryStateEvent struct {
+	ID     string `json:"id"`
+	Amount int    `json:"amount"`
 }

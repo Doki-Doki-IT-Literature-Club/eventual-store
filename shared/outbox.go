@@ -90,7 +90,6 @@ func processOutboxBatch(ctx context.Context, conn *pgx.Conn, kcl *kgo.Client, ev
 	}
 
 	if len(eventsToPublish) == 0 {
-		log.Println("No pending events to publish")
 		return nil
 	}
 
