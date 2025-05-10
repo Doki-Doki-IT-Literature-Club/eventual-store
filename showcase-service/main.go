@@ -10,16 +10,14 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Doki-Doki-IT-Literature-Club/sops/shared"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 const (
-	kafkaAddress    = "kafka:9092"
-	dbConnString    = "postgres://user:password@postgres:5432/"
-	dbName          = "showcase_db"
-	orderStateTopic = "order-state"
+	dbName = "showcase_db"
 )
 
 type Order struct {
@@ -128,7 +126,7 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 
 		events.EachRecord(func(r *kgo.Record) {
 			log.Printf("New record")
-			if r.Topic == orderStateTopic {
+			if r.Topic == shared.OrderStateTopic {
 				log.Printf("Processing record from topic %s", r.Topic)
 
 				order := &Order{}
@@ -149,7 +147,7 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 }
 
 func connectToDB() (*pgx.Conn, error) {
-	conn, err := pgx.Connect(context.Background(), dbConnString+"/"+dbName)
+	conn, err := pgx.Connect(context.Background(), shared.DbConnString+dbName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
@@ -218,11 +216,11 @@ func main() {
 
 	ctx := context.Background()
 	kcl, err := kgo.NewClient(
-		kgo.SeedBrokers(kafkaAddress),
+		kgo.SeedBrokers(shared.KafkaAddress),
 		kgo.AllowAutoTopicCreation(),
 		kgo.ConsumerGroup("order-group"),
 		kgo.ConsumeTopics(
-			orderStateTopic,
+			shared.OrderStateTopic,
 		),
 	)
 
@@ -230,7 +228,7 @@ func main() {
 		log.Fatalf("Error creating Kafka client: %v", err)
 	}
 
-	ensureDBExists(dbConnString, dbName)
+	ensureDBExists(shared.DbConnString, dbName)
 
 	conn, err := connectToDB()
 	if err != nil {
