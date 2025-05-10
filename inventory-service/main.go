@@ -12,21 +12,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
-const kafkaAddress = "kafka:9092"
-const orderRequestTopic = "order-request"
-const orderRequestResultTopic = "order-request-result"
 const orderRequestResultOutboxEventType = "OrderRequestResult"
-
-type OrderRequest struct {
-	OrderID  string         `json:"order_id"`
-	Products map[string]int `json:"products"`
-}
-
-type OrderRequestResult struct {
-	OrderID       string `json:"order_id"`
-	RequestStatus string `json:"request_status"`
-	Reason        string `json:"reason"`
-}
 
 func main() {
 	log.Printf("Starting inventory service")
@@ -42,10 +28,10 @@ func main() {
 	initDB(conn)
 
 	kcl, err := kgo.NewClient(
-		kgo.SeedBrokers(kafkaAddress),
+		kgo.SeedBrokers(shared.KafkaAddress),
 		kgo.AllowAutoTopicCreation(),
 		kgo.ConsumerGroup("inventory-group"),
-		kgo.ConsumeTopics(orderRequestTopic),
+		kgo.ConsumeTopics(shared.OrderRequestTopic),
 	)
 
 	if err != nil {
@@ -57,10 +43,10 @@ func main() {
 	go consume(ctx, kcl, conn)
 
 	pollInterval := 5 * time.Second
-	shared.ConsumeOutbox(ctx, conn, kcl, pollInterval, map[string]string{orderRequestResultOutboxEventType: orderRequestResultTopic})
+	shared.ConsumeOutbox(ctx, conn, kcl, pollInterval, map[string]string{orderRequestResultOutboxEventType: shared.OrderRequestResultTopic})
 }
 
-func processOrderRequest(orderRequest *OrderRequest) *OrderRequestResult {
+func processOrderRequest(orderRequest *shared.OrderRequestEvent) *shared.OrderRequestResultEvent {
 	status := "accepted"
 	reason := "sufficient stock"
 	if n := rand.Intn(2); n == 0 {
@@ -68,7 +54,7 @@ func processOrderRequest(orderRequest *OrderRequest) *OrderRequestResult {
 		reason = "insufficient stock"
 	}
 
-	return &OrderRequestResult{
+	return &shared.OrderRequestResultEvent{
 		OrderID:       orderRequest.OrderID,
 		RequestStatus: status,
 		Reason:        reason,
@@ -87,7 +73,7 @@ func consume(ctx context.Context, kcl *kgo.Client, conn *pgx.Conn) {
 		events.EachRecord(func(receivedRecord *kgo.Record) {
 			log.Printf("Processing")
 
-			if receivedRecord.Topic == orderRequestTopic {
+			if receivedRecord.Topic == shared.OrderRequestTopic {
 				handleOrderRequestTopicEvent(ctx, kcl, conn, receivedRecord)
 			} else {
 				log.Printf("Unknown topic: %s", receivedRecord.Topic)
@@ -97,7 +83,7 @@ func consume(ctx context.Context, kcl *kgo.Client, conn *pgx.Conn) {
 }
 
 func handleOrderRequestTopicEvent(ctx context.Context, kcl *kgo.Client, conn *pgx.Conn, receivedRecord *kgo.Record) {
-	orderRequest := &OrderRequest{}
+	orderRequest := &shared.OrderRequestEvent{}
 	if err := json.Unmarshal(receivedRecord.Value, orderRequest); err != nil {
 		log.Printf("Error unmarshalling record: %v", err)
 		return

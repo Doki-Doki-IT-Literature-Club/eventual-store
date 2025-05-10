@@ -6,32 +6,19 @@ import (
 	"log"
 	"time"
 
+	"github.com/Doki-Doki-IT-Literature-Club/sops/shared"
+
 	"github.com/twmb/franz-go/pkg/kgo"
 )
-
-const base2Address = "http://base-2-base-2-1:8002"
-const kafkaAddress = "kafka:9092"
-const dbConnString = "postgres://user:password@postgres:5432/mydb"
-const orderShippingRequestTopic = "order-shipping-request"
-const orderShippingStatusTopic = "order-shipping-status"
-
-type OrderShippingRequest struct {
-	OrderID string `json:"order_id"`
-}
-
-type OrderShippingStatus struct {
-	OrderID string `json:"order_id"`
-	Status  string `json:"status"`
-}
 
 func main() {
 	log.Printf("Starting base-1 service")
 
 	kcl, err := kgo.NewClient(
-		kgo.SeedBrokers(kafkaAddress),
+		kgo.SeedBrokers(shared.KafkaAddress),
 		kgo.AllowAutoTopicCreation(),
 		kgo.ConsumerGroup("shipping-group"),
-		kgo.ConsumeTopics(orderShippingRequestTopic),
+		kgo.ConsumeTopics(shared.OrderShippingRequestTopic),
 	)
 
 	if err != nil {
@@ -52,14 +39,14 @@ func main() {
 		events.EachRecord(func(r *kgo.Record) {
 			log.Printf("Processing")
 
-			orderShippingRequest := &OrderShippingRequest{}
+			orderShippingRequest := &shared.OrderShippingRequestEvent{}
 			if err := json.Unmarshal(r.Value, orderShippingRequest); err != nil {
 				log.Printf("Error unmarshalling record: %v", err)
 				return
 			}
 			time.Sleep(time.Second * 5)
 
-			orderShippingStatusInDelivery := &OrderShippingStatus{
+			orderShippingStatusInDelivery := &shared.OrderShippingStatusEvent{
 				OrderID: orderShippingRequest.OrderID,
 				Status:  "In Delivery",
 			}
@@ -71,7 +58,7 @@ func main() {
 			}
 
 			record := &kgo.Record{
-				Topic: orderShippingStatusTopic,
+				Topic: shared.OrderShippingStatusTopic,
 				Value: orderShippingStatusDeliveryBytes,
 			}
 
@@ -80,12 +67,12 @@ func main() {
 					log.Printf("record had a produce error: %v\n", err)
 				}
 
-				log.Printf("Produced record to topic %s", orderShippingStatusTopic)
+				log.Printf("Produced record to topic %s", shared.OrderShippingStatusTopic)
 			})
 
 			time.Sleep(time.Second * 10)
 
-			orderShippingStatusDelivered := &OrderShippingStatus{
+			orderShippingStatusDelivered := &shared.OrderShippingStatusEvent{
 				OrderID: orderShippingRequest.OrderID,
 				Status:  "Delivered",
 			}
@@ -97,7 +84,7 @@ func main() {
 			}
 
 			record = &kgo.Record{
-				Topic: orderShippingStatusTopic,
+				Topic: shared.OrderShippingStatusTopic,
 				Value: orderShippingStatusDeliveredBytes,
 			}
 
@@ -106,7 +93,7 @@ func main() {
 					log.Printf("record had a produce error: %v\n", err)
 				}
 
-				log.Printf("Produced record to topic %s", orderShippingStatusTopic)
+				log.Printf("Produced record to topic %s", shared.OrderShippingStatusTopic)
 			})
 		})
 	}

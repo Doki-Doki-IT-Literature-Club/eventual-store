@@ -60,7 +60,7 @@ services:
       - "8001:8001"
     volumes:
       - ./shipment-service:/app
-      - ../shared:/shared
+      - ./shared:/shared
     networks:
       - sharednet
     depends_on:

@@ -18,39 +18,13 @@ import (
 )
 
 const (
-	base2Address              = "http://base-2-base-2-1:8002"
-	kafkaAddress              = "kafka:9092"
-	dbConnString              = "postgres://user:password@postgres:5432/"
-	dbName                    = "orders"
-	orderShippingRequestTopic = "order-shipping-request"
-	orderShippingStatusTopic  = "order-shipping-status"
-	orderRequestTopic         = "order-request"
-	orderRequestResultTopic   = "order-request-result"
-
+	kafkaAddress               = "kafka:9092"
+	dbName                     = "orders"
 	orderUpdateOutboxEventType = "OrderUpdate"
-	ordersStateTopic           = "order-state"
 )
 
-type OrderShippingStatus struct {
-	OrderID string `json:"order_id"`
-	Status  string `json:"status"`
-}
-
-type OrderRequest struct {
-	OrderID  string         `json:"order_id"`
-	Products map[string]int `json:"products"`
-}
-
-type OrderRequestResponse struct {
-	OrderID       string `json:"order_id"`
-	RequestStatus string `json:"request_status"`
-}
 type CreateOrderPayload struct {
 	Products map[string]int `json:"products"`
-}
-
-type OrderShippingRequest struct {
-	OrderID string `json:"order_id"`
 }
 
 type Order struct {
@@ -68,8 +42,8 @@ func main() {
 		kgo.AllowAutoTopicCreation(),
 		kgo.ConsumerGroup("order-group"),
 		kgo.ConsumeTopics(
-			orderRequestResultTopic,
-			orderShippingStatusTopic,
+			shared.OrderRequestResultTopic,
+			shared.OrderShippingStatusTopic,
 		),
 	)
 
@@ -77,7 +51,7 @@ func main() {
 		log.Fatalf("Error creating Kafka client: %v", err)
 	}
 
-	ensureDBExists(dbConnString, dbName)
+	ensureDBExists(shared.DbConnString, dbName)
 
 	conn, err := connectToDB()
 	if err != nil {
@@ -92,7 +66,7 @@ func main() {
 
 	defer kcl.Close()
 	go consume(kcl, conn, ctx)
-	go shared.ConsumeOutbox(ctx, conn, kcl, time.Second, map[string]string{orderUpdateOutboxEventType: ordersStateTopic})
+	go shared.ConsumeOutbox(ctx, conn, kcl, time.Second, map[string]string{orderUpdateOutboxEventType: shared.OrderStateTopic})
 	httpServer(conn, kcl, ctx)
 }
 
@@ -119,16 +93,12 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 	port := 8002
 	log.Printf("Starting server on port %d", port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
-		log.Fatalf("Server error: %v", err)
-
-		if err != nil {
-			panic(err)
-		}
+		log.Fatalf("Error starting server: %v", err)
 	}
 }
 
 func sendOrderRequest(kcl *kgo.Client, orderID uuid.UUID, products map[string]int, ctx context.Context) {
-	orderRequestPayload := &OrderRequest{
+	orderRequestPayload := &shared.OrderRequestEvent{
 		OrderID:  orderID.String(),
 		Products: products,
 	}
@@ -140,7 +110,7 @@ func sendOrderRequest(kcl *kgo.Client, orderID uuid.UUID, products map[string]in
 	}
 
 	record := &kgo.Record{
-		Topic: orderRequestTopic,
+		Topic: shared.OrderRequestTopic,
 		Value: orderRequestRecord,
 	}
 
@@ -149,12 +119,12 @@ func sendOrderRequest(kcl *kgo.Client, orderID uuid.UUID, products map[string]in
 			log.Printf("record had a produce error: %v\n", err)
 		}
 
-		log.Printf("Produced record to topic %s", orderRequestTopic)
+		log.Printf("Produced record to topic %s", shared.OrderRequestTopic)
 	})
 }
 
 func sendOrderShippingRequest(kcl *kgo.Client, orderID string, ctx context.Context) {
-	orderShippingRequestPayload := OrderShippingRequest{orderID}
+	orderShippingRequestPayload := shared.OrderShippingRequestEvent{OrderID: orderID}
 
 	orderShippingRequestRecord, err := json.Marshal(orderShippingRequestPayload)
 	if err != nil {
@@ -163,7 +133,7 @@ func sendOrderShippingRequest(kcl *kgo.Client, orderID string, ctx context.Conte
 	}
 
 	record := &kgo.Record{
-		Topic: orderShippingRequestTopic,
+		Topic: shared.OrderShippingRequestTopic,
 		Value: orderShippingRequestRecord,
 	}
 
@@ -172,7 +142,7 @@ func sendOrderShippingRequest(kcl *kgo.Client, orderID string, ctx context.Conte
 			log.Printf("record had a produce error: %v\n", err)
 		}
 
-		log.Printf("Produced record to topic %s", orderShippingRequestTopic)
+		log.Printf("Produced record to topic %s", shared.OrderShippingRequestTopic)
 	})
 }
 
@@ -228,10 +198,10 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 
 		events.EachRecord(func(r *kgo.Record) {
 			log.Printf("New record")
-			if r.Topic == orderRequestResultTopic {
+			if r.Topic == shared.OrderRequestResultTopic {
 				log.Printf("Processing record from topic %s", r.Topic)
 
-				orderRequestResponse := &OrderRequestResponse{}
+				orderRequestResponse := &shared.OrderRequestResultEvent{}
 				if err := json.Unmarshal(r.Value, orderRequestResponse); err != nil {
 					log.Printf("Error unmarshalling record: %v", err)
 					return
@@ -240,16 +210,16 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 				// TODO: get order fist, pass products
 				err := upsertOrder(ctx, conn, &Order{ID: orderRequestResponse.OrderID, Status: orderRequestResponse.RequestStatus})
 				if err != nil {
-					log.Printf(err.Error())
+					log.Print(err.Error())
 				}
 				if orderRequestResponse.RequestStatus == "accepted" {
 					sendOrderShippingRequest(kcl, orderRequestResponse.OrderID, ctx)
 					log.Printf("Sent shipping request")
 				}
-			} else if r.Topic == orderShippingStatusTopic {
+			} else if r.Topic == shared.OrderShippingStatusTopic {
 				log.Printf("Processing record from topic %s", r.Topic)
 
-				orderShippingStatus := &OrderShippingStatus{}
+				orderShippingStatus := &shared.OrderShippingStatusEvent{}
 				if err := json.Unmarshal(r.Value, orderShippingStatus); err != nil {
 					log.Printf("Error unmarshalling record: %v", err)
 					return
@@ -258,7 +228,7 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 				// TODO: get order fist, pass products
 				err := upsertOrder(ctx, conn, &Order{ID: orderShippingStatus.OrderID, Status: orderShippingStatus.Status})
 				if err != nil {
-					log.Printf(err.Error())
+					log.Print(err.Error())
 				}
 
 			} else {
@@ -269,7 +239,7 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 }
 
 func connectToDB() (*pgx.Conn, error) {
-	conn, err := pgx.Connect(context.Background(), dbConnString+"/"+dbName)
+	conn, err := pgx.Connect(context.Background(), shared.DbConnString+dbName)
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to database: %v", err)
 	}
