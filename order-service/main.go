@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/Doki-Doki-IT-Literature-Club/sops/shared"
@@ -20,10 +18,6 @@ const (
 	dbName                     = "orders"
 	orderUpdateOutboxEventType = "OrderUpdate"
 )
-
-type CreateOrderPayload struct {
-	Products map[string]int `json:"products"`
-}
 
 type Order struct {
 	ID       string         `json:"id"`
@@ -69,33 +63,6 @@ func main() {
 	go consume(kcl, conn, ctx)
 	go shared.ConsumeOutbox(ctx, conn, kcl, time.Second, map[string]string{orderUpdateOutboxEventType: shared.OrderStateTopic})
 	httpServer(conn, kcl, ctx)
-}
-
-func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
-	http.HandleFunc("POST /orders", func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
-		payload := CreateOrderPayload{}
-		if json.NewDecoder(r.Body).Decode(&payload) != nil {
-			w.WriteHeader(http.StatusTeapot)
-			w.Write([]byte("Invalid payload"))
-			return
-		}
-		orderID := uuid.New()
-		err := upsertOrder(ctx, conn, &Order{orderID.String(), "new", payload.Products})
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-		sendOrderRequest(kcl, orderID, payload.Products, ctx)
-
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(orderID.String()))
-	})
-
-	port := 80
-	log.Printf("Starting server on port %d", port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
-		log.Fatalf("Error starting server: %v", err)
-	}
 }
 
 func sendOrderRequest(kcl *kgo.Client, orderID uuid.UUID, products map[string]int, ctx context.Context) {

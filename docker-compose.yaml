@@ -23,6 +23,8 @@ services:
     volumes:
       - ./order-service:/app
       - ./shared:/shared
+    ports:
+      - 8002:80
     networks:
       - sharednet
     depends_on:

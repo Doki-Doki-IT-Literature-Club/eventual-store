@@ -37,5 +37,5 @@ func main() {
 	}
 
 	go consume(kcl, conn, ctx)
-	httpServer(conn, kcl, ctx)
+	httpServer(conn)
 }
