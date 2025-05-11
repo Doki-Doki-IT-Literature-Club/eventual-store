@@ -43,3 +43,25 @@ func ConnectToDB(ctx context.Context, dbname string) (*pgx.Conn, error) {
 
 	return conn, nil
 }
+
+func InitDataBases(ctx context.Context, conn *pgx.Conn, sql []string) error {
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction for schema init: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	for _, query := range sql {
+		_, err = tx.Exec(ctx, query)
+		if err != nil {
+			return fmt.Errorf("unable to execute query: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit schema init transaction: %w", err)
+	}
+
+	log.Println("Database schema initialization complete.")
+	return nil
+}
