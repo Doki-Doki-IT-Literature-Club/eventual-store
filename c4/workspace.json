@@ -1,0 +1,863 @@
+{
+  "configuration" : { },
+  "description" : "Level 2 Container diagram for the Simple Order Processing System.",
+  "documentation" : { },
+  "id" : 1,
+  "lastModifiedAgent" : "structurizr-ui",
+  "lastModifiedDate" : "2025-05-11T11:16:39Z",
+  "model" : {
+    "people" : [ {
+      "description" : "An end-user of the e-commerce platform who places orders.",
+      "id" : "1",
+      "location" : "Unspecified",
+      "name" : "Customer",
+      "properties" : {
+        "structurizr.dsl.identifier" : "customer"
+      },
+      "tags" : "Element,Person,Actor"
+    }, {
+      "description" : "An internal user responsible for managing product stock levels.",
+      "id" : "2",
+      "location" : "Unspecified",
+      "name" : "Inventory Manager",
+      "properties" : {
+        "structurizr.dsl.identifier" : "inventorymanage"
+      },
+      "tags" : "Element,Person,Actor"
+    } ],
+    "softwareSystems" : [ {
+      "containers" : [ {
+        "description" : "Manages product stock levels and processes inventory update events.",
+        "documentation" : { },
+        "group" : "Inventory Service",
+        "id" : "4",
+        "name" : "Inventory Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "inventoryservice"
+        },
+        "relationships" : [ {
+          "description" : "Reads from/Writes to",
+          "destinationId" : "6",
+          "id" : "37",
+          "sourceId" : "4",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Consumes",
+          "destinationId" : "7",
+          "id" : "38",
+          "sourceId" : "4",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Consumes",
+          "destinationId" : "5",
+          "id" : "39",
+          "sourceId" : "4",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Publishes",
+          "destinationId" : "5",
+          "id" : "40",
+          "sourceId" : "4",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Publishes",
+          "destinationId" : "10",
+          "id" : "41",
+          "sourceId" : "4",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Publishes",
+          "destinationId" : "8",
+          "id" : "42",
+          "linkedRelationshipId" : "41",
+          "sourceId" : "4"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Node.js/Express"
+      }, {
+        "description" : "Topic for inventory item-related events.",
+        "documentation" : { },
+        "group" : "Inventory Service",
+        "id" : "5",
+        "name" : "Inventory Items Topic",
+        "properties" : {
+          "structurizr.dsl.identifier" : "inverntoryitemstopic"
+        },
+        "tags" : "Element,Container,Topic"
+      }, {
+        "description" : "Stores current stock levels for products.",
+        "documentation" : { },
+        "group" : "Inventory Service",
+        "id" : "6",
+        "name" : "Inventory Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "inventorydb"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "Redis/PostgreSQL"
+      }, {
+        "description" : "Topic for order requests.",
+        "documentation" : { },
+        "group" : "Inventory Service",
+        "id" : "7",
+        "name" : "Order Request Topic",
+        "properties" : {
+          "structurizr.dsl.identifier" : "orderrequesttopic"
+        },
+        "tags" : "Element,Container,Topic"
+      } ],
+      "description" : "Manages product stock levels and processes inventory update events.",
+      "documentation" : { },
+      "id" : "3",
+      "location" : "Unspecified",
+      "name" : "Inventory System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "inventorysystem"
+      },
+      "relationships" : [ {
+        "description" : "Publishes",
+        "destinationId" : "10",
+        "id" : "43",
+        "linkedRelationshipId" : "41",
+        "sourceId" : "3"
+      }, {
+        "description" : "Publishes",
+        "destinationId" : "8",
+        "id" : "44",
+        "linkedRelationshipId" : "41",
+        "sourceId" : "3"
+      } ],
+      "tags" : "Element,Software System,ExternalSystem"
+    }, {
+      "containers" : [ {
+        "description" : "Handles incoming order requests, manages order state, and publishes/consumes order-related events.",
+        "documentation" : { },
+        "group" : "Order Service",
+        "id" : "9",
+        "name" : "Order Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "orderservice"
+        },
+        "relationships" : [ {
+          "description" : "Reads from/Writes to",
+          "destinationId" : "11",
+          "id" : "25",
+          "sourceId" : "9",
+          "tags" : "Relationship",
+          "technology" : "SQL"
+        }, {
+          "description" : "Publishes",
+          "destinationId" : "12",
+          "id" : "26",
+          "sourceId" : "9",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Publishes",
+          "destinationId" : "7",
+          "id" : "27",
+          "sourceId" : "9",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Publishes",
+          "destinationId" : "3",
+          "id" : "28",
+          "linkedRelationshipId" : "27",
+          "sourceId" : "9"
+        }, {
+          "description" : "Consumes",
+          "destinationId" : "13",
+          "id" : "31",
+          "sourceId" : "9",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Consumes",
+          "destinationId" : "10",
+          "id" : "32",
+          "sourceId" : "9",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Publishes",
+          "destinationId" : "21",
+          "id" : "33",
+          "sourceId" : "9",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Publishes",
+          "destinationId" : "19",
+          "id" : "34",
+          "linkedRelationshipId" : "33",
+          "sourceId" : "9"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Python/FastAPI"
+      }, {
+        "description" : "Topic for order results.",
+        "documentation" : { },
+        "group" : "Order Service",
+        "id" : "10",
+        "name" : "Order Request Result Topic",
+        "properties" : {
+          "structurizr.dsl.identifier" : "orderrequestresulttopic"
+        },
+        "tags" : "Element,Container,Topic"
+      }, {
+        "description" : "Stores order information (status, items, user details).",
+        "documentation" : { },
+        "group" : "Order Service",
+        "id" : "11",
+        "name" : "Order Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "orderdb"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      }, {
+        "description" : "Topic for compacted order state.",
+        "documentation" : { },
+        "group" : "Order Service",
+        "id" : "12",
+        "name" : "Order State Topic",
+        "properties" : {
+          "structurizr.dsl.identifier" : "orderstatetopic"
+        },
+        "tags" : "Element,Container,Topic"
+      }, {
+        "description" : "Topic for shipping status updates.",
+        "documentation" : { },
+        "group" : "Order Service",
+        "id" : "13",
+        "name" : "Shipping Status Topic",
+        "properties" : {
+          "structurizr.dsl.identifier" : "shippingstatustopic"
+        },
+        "tags" : "Element,Container,Topic"
+      } ],
+      "description" : "Handles the reception and processing of customer orders, coordinating inventory updates and user notifications asynchronously via events (EDA).",
+      "documentation" : { },
+      "id" : "8",
+      "location" : "Unspecified",
+      "name" : "Simple Order Processing System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "orderprocessingsystem"
+      },
+      "relationships" : [ {
+        "description" : "Publishes",
+        "destinationId" : "7",
+        "id" : "29",
+        "linkedRelationshipId" : "27",
+        "sourceId" : "8"
+      }, {
+        "description" : "Publishes",
+        "destinationId" : "3",
+        "id" : "30",
+        "linkedRelationshipId" : "27",
+        "sourceId" : "8"
+      }, {
+        "description" : "Publishes",
+        "destinationId" : "21",
+        "id" : "35",
+        "linkedRelationshipId" : "33",
+        "sourceId" : "8"
+      }, {
+        "description" : "Publishes",
+        "destinationId" : "19",
+        "id" : "36",
+        "linkedRelationshipId" : "33",
+        "sourceId" : "8"
+      } ],
+      "tags" : "Element,Software System"
+    }, {
+      "containers" : [ {
+        "description" : "Consumes events and sends notifications to users via external services.",
+        "documentation" : { },
+        "group" : "Custromer Notification Service",
+        "id" : "15",
+        "name" : "Custromer Notification Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "notificationservice"
+        },
+        "relationships" : [ {
+          "description" : "Consumes",
+          "destinationId" : "12",
+          "id" : "45",
+          "sourceId" : "15",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Consumes",
+          "destinationId" : "8",
+          "id" : "46",
+          "linkedRelationshipId" : "45",
+          "sourceId" : "15"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Go/Gin"
+      } ],
+      "description" : "Handles user notifications and alerts.",
+      "documentation" : { },
+      "id" : "14",
+      "location" : "Unspecified",
+      "name" : "Custromer Notification System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "customernotificationsystem"
+      },
+      "relationships" : [ {
+        "description" : "Consumes",
+        "destinationId" : "12",
+        "id" : "47",
+        "linkedRelationshipId" : "45",
+        "sourceId" : "14"
+      }, {
+        "description" : "Consumes",
+        "destinationId" : "8",
+        "id" : "48",
+        "linkedRelationshipId" : "45",
+        "sourceId" : "14"
+      } ],
+      "tags" : "Element,Software System"
+    }, {
+      "containers" : [ {
+        "description" : "Consumes events and sends notifications to users via external services.",
+        "documentation" : { },
+        "group" : "Inverntory Notification Service",
+        "id" : "17",
+        "name" : "Inverntory Notification Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "inventorynotificationservice"
+        },
+        "relationships" : [ {
+          "description" : "Consumes",
+          "destinationId" : "5",
+          "id" : "65",
+          "sourceId" : "17",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Consumes",
+          "destinationId" : "3",
+          "id" : "66",
+          "linkedRelationshipId" : "65",
+          "sourceId" : "17"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Go/Gin"
+      } ],
+      "description" : "Handles user notifications and alerts.",
+      "documentation" : { },
+      "id" : "16",
+      "location" : "Unspecified",
+      "name" : "Inverntory Notification System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "inventorynotificationsystem"
+      },
+      "relationships" : [ {
+        "description" : "Consumes",
+        "destinationId" : "5",
+        "id" : "67",
+        "linkedRelationshipId" : "65",
+        "sourceId" : "16"
+      }, {
+        "description" : "Consumes",
+        "destinationId" : "3",
+        "id" : "68",
+        "linkedRelationshipId" : "65",
+        "sourceId" : "16"
+      } ],
+      "tags" : "Element,Software System"
+    }, {
+      "description" : "External system for authenticating users.",
+      "documentation" : { },
+      "id" : "18",
+      "location" : "Unspecified",
+      "name" : "Identity Provider",
+      "properties" : {
+        "structurizr.dsl.identifier" : "identityprovider"
+      },
+      "tags" : "Element,Software System,ExternalSystem"
+    }, {
+      "containers" : [ {
+        "description" : "Handles shipping-related events and updates.",
+        "documentation" : { },
+        "id" : "20",
+        "name" : "Shipping Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "shippingservice"
+        },
+        "relationships" : [ {
+          "description" : "Consumes",
+          "destinationId" : "21",
+          "id" : "49",
+          "sourceId" : "20",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Publishes",
+          "destinationId" : "13",
+          "id" : "50",
+          "sourceId" : "20",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Publishes",
+          "destinationId" : "8",
+          "id" : "51",
+          "linkedRelationshipId" : "50",
+          "sourceId" : "20"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Java/Spring"
+      }, {
+        "description" : "Topic for order ready for shipping events.",
+        "documentation" : { },
+        "id" : "21",
+        "name" : "Order Ready for Shipping Topic",
+        "properties" : {
+          "structurizr.dsl.identifier" : "orderreadyforshippingtopic"
+        },
+        "tags" : "Element,Container,Topic"
+      } ],
+      "description" : "External system for managing shipping and delivery.",
+      "documentation" : { },
+      "id" : "19",
+      "location" : "Unspecified",
+      "name" : "Shipping Service",
+      "properties" : {
+        "structurizr.dsl.identifier" : "shippingsytem"
+      },
+      "relationships" : [ {
+        "description" : "Publishes",
+        "destinationId" : "13",
+        "id" : "52",
+        "linkedRelationshipId" : "50",
+        "sourceId" : "19"
+      }, {
+        "description" : "Publishes",
+        "destinationId" : "8",
+        "id" : "53",
+        "linkedRelationshipId" : "50",
+        "sourceId" : "19"
+      } ],
+      "tags" : "Element,Software System"
+    }, {
+      "containers" : [ {
+        "description" : "Handles product showcasing and related events.",
+        "documentation" : { },
+        "id" : "23",
+        "name" : "Showcase Service",
+        "properties" : {
+          "structurizr.dsl.identifier" : "showcaseservice"
+        },
+        "relationships" : [ {
+          "description" : "Consumes",
+          "destinationId" : "12",
+          "id" : "54",
+          "sourceId" : "23",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Consumes",
+          "destinationId" : "8",
+          "id" : "55",
+          "linkedRelationshipId" : "54",
+          "sourceId" : "23"
+        }, {
+          "description" : "Consumes",
+          "destinationId" : "5",
+          "id" : "58",
+          "sourceId" : "23",
+          "tags" : "Relationship"
+        }, {
+          "description" : "Consumes",
+          "destinationId" : "3",
+          "id" : "59",
+          "linkedRelationshipId" : "58",
+          "sourceId" : "23"
+        }, {
+          "description" : "Reads from/Writes to",
+          "destinationId" : "24",
+          "id" : "62",
+          "sourceId" : "23",
+          "tags" : "Relationship",
+          "technology" : "JDBC"
+        }, {
+          "description" : "Sends create order",
+          "destinationId" : "9",
+          "id" : "63",
+          "sourceId" : "23",
+          "tags" : "Relationship",
+          "technology" : "HTTP/REST"
+        } ],
+        "tags" : "Element,Container,Service",
+        "technology" : "Java/Spring"
+      }, {
+        "description" : "Stores product information and showcases.",
+        "documentation" : { },
+        "id" : "24",
+        "name" : "Showcase Database",
+        "properties" : {
+          "structurizr.dsl.identifier" : "showcasedb"
+        },
+        "tags" : "Element,Container,Database",
+        "technology" : "PostgreSQL"
+      } ],
+      "description" : "External system for showcasing products.",
+      "documentation" : { },
+      "id" : "22",
+      "location" : "Unspecified",
+      "name" : "Showcase System",
+      "properties" : {
+        "structurizr.dsl.identifier" : "showcasesystem"
+      },
+      "relationships" : [ {
+        "description" : "Consumes",
+        "destinationId" : "12",
+        "id" : "56",
+        "linkedRelationshipId" : "54",
+        "sourceId" : "22"
+      }, {
+        "description" : "Consumes",
+        "destinationId" : "8",
+        "id" : "57",
+        "linkedRelationshipId" : "54",
+        "sourceId" : "22"
+      }, {
+        "description" : "Consumes",
+        "destinationId" : "5",
+        "id" : "60",
+        "linkedRelationshipId" : "58",
+        "sourceId" : "22"
+      }, {
+        "description" : "Consumes",
+        "destinationId" : "3",
+        "id" : "61",
+        "linkedRelationshipId" : "58",
+        "sourceId" : "22"
+      }, {
+        "description" : "Sends create order",
+        "destinationId" : "9",
+        "id" : "64",
+        "linkedRelationshipId" : "63",
+        "sourceId" : "22",
+        "technology" : "HTTP/REST"
+      } ],
+      "tags" : "Element,Software System,ExternalSystem"
+    } ]
+  },
+  "name" : "Simple Order Processing System - Containers",
+  "properties" : {
+    "structurizr.dsl" : "d29ya3NwYWNlICJTaW1wbGUgT3JkZXIgUHJvY2Vzc2luZyBTeXN0ZW0gLSBDb250YWluZXJzIiAiTGV2ZWwgMiBDb250YWluZXIgZGlhZ3JhbSBmb3IgdGhlIFNpbXBsZSBPcmRlciBQcm9jZXNzaW5nIFN5c3RlbS4iIHsKCiAgICBtb2RlbCB7CiAgICAgICAgY3VzdG9tZXIgPSBwZXJzb24gIkN1c3RvbWVyIiAiQW4gZW5kLXVzZXIgb2YgdGhlIGUtY29tbWVyY2UgcGxhdGZvcm0gd2hvIHBsYWNlcyBvcmRlcnMuIiB7CiAgICAgICAgICAgIHRhZ3MgIkFjdG9yIgogICAgICAgIH0KICAgICAgICBpbnZlbnRvcnlNYW5hZ2UgPSBwZXJzb24gIkludmVudG9yeSBNYW5hZ2VyIiAiQW4gaW50ZXJuYWwgdXNlciByZXNwb25zaWJsZSBmb3IgbWFuYWdpbmcgcHJvZHVjdCBzdG9jayBsZXZlbHMuIiB7CiAgICAgICAgICAgIHRhZ3MgIkFjdG9yIgogICAgICAgIH0KICAgICAgICAKCiAgICAgICAgaW52ZW50b3J5U3lzdGVtID0gc29mdHdhcmVTeXN0ZW0gIkludmVudG9yeSBTeXN0ZW0iICJNYW5hZ2VzIHByb2R1Y3Qgc3RvY2sgbGV2ZWxzIGFuZCBwcm9jZXNzZXMgaW52ZW50b3J5IHVwZGF0ZSBldmVudHMuIiB7CiAgICAgICAgICAgIHRhZ3MgIkV4dGVybmFsU3lzdGVtIgoKICAgICAgICAgICAgaW52ZW50b3J5U2VydmljZUdyb3VwID0gZ3JvdXAgIkludmVudG9yeSBTZXJ2aWNlIiB7CiAgICAgICAgICAgICAgICBpbnZlbnRvcnlTZXJ2aWNlID0gY29udGFpbmVyICJJbnZlbnRvcnkgU2VydmljZSIgIk1hbmFnZXMgcHJvZHVjdCBzdG9jayBsZXZlbHMgYW5kIHByb2Nlc3NlcyBpbnZlbnRvcnkgdXBkYXRlIGV2ZW50cy4iICJOb2RlLmpzL0V4cHJlc3MiIHsKICAgICAgICAgICAgICAgICAgICB0YWdzICJTZXJ2aWNlIgogICAgICAgICAgICAgICAgfQoKICAgICAgICAgICAgICAgIGludmVybnRvcnlJdGVtc1RvcGljID0gY29udGFpbmVyICJJbnZlbnRvcnkgSXRlbXMgVG9waWMiICJUb3BpYyBmb3IgaW52ZW50b3J5IGl0ZW0tcmVsYXRlZCBldmVudHMuIiB7CiAgICAgICAgICAgICAgICAgICAgdGFncyAiVG9waWMiCiAgICAgICAgICAgICAgICB9CgogICAgICAgICAgICAgICAgaW52ZW50b3J5RGIgPSBjb250YWluZXIgIkludmVudG9yeSBEYXRhYmFzZSIgIlN0b3JlcyBjdXJyZW50IHN0b2NrIGxldmVscyBmb3IgcHJvZHVjdHMuIiAiUmVkaXMvUG9zdGdyZVNRTCIgewogICAgICAgICAgICAgICAgICAgIHRhZ3MgIkRhdGFiYXNlIgogICAgICAgICAgICAgICAgfQoKICAgICAgICAgICAgICAgIG9yZGVyUmVxdWVzdFRvcGljID0gY29udGFpbmVyICJPcmRlciBSZXF1ZXN0IFRvcGljIiAiVG9waWMgZm9yIG9yZGVyIHJlcXVlc3RzLiIgewogICAgICAgICAgICAgICAgICAgIHRhZ3MgIlRvcGljIgogICAgICAgICAgICAgICAgfQogICAgICAgICAgICB9CiAgICAgICAgfQogICAgICAgIAogICAgICAgIG9yZGVyUHJvY2Vzc2luZ1N5c3RlbSA9IHNvZnR3YXJlU3lzdGVtICJTaW1wbGUgT3JkZXIgUHJvY2Vzc2luZyBTeXN0ZW0iICJIYW5kbGVzIHRoZSByZWNlcHRpb24gYW5kIHByb2Nlc3Npbmcgb2YgY3VzdG9tZXIgb3JkZXJzLCBjb29yZGluYXRpbmcgaW52ZW50b3J5IHVwZGF0ZXMgYW5kIHVzZXIgbm90aWZpY2F0aW9ucyBhc3luY2hyb25vdXNseSB2aWEgZXZlbnRzIChFREEpLiIgewogICAgICAgICAgICBvcmRlclNlcnZpY2VHcm91cCA9IGdyb3VwICJPcmRlciBTZXJ2aWNlIiB7CiAgICAgICAgICAgICAgICBvcmRlclNlcnZpY2UgPSBjb250YWluZXIgIk9yZGVyIFNlcnZpY2UiICJIYW5kbGVzIGluY29taW5nIG9yZGVyIHJlcXVlc3RzLCBtYW5hZ2VzIG9yZGVyIHN0YXRlLCBhbmQgcHVibGlzaGVzL2NvbnN1bWVzIG9yZGVyLXJlbGF0ZWQgZXZlbnRzLiIgIlB5dGhvbi9GYXN0QVBJIiB7CiAgICAgICAgICAgICAgICAgICAgdGFncyAiU2VydmljZSIKICAgICAgICAgICAgICAgIH0KCiAgICAgICAgICAgICAgICBvcmRlclJlcXVlc3RSZXN1bHRUb3BpYyA9IGNvbnRhaW5lciAiT3JkZXIgUmVxdWVzdCBSZXN1bHQgVG9waWMiICJUb3BpYyBmb3Igb3JkZXIgcmVzdWx0cy4iIHsKICAgICAgICAgICAgICAgICAgICB0YWdzICJUb3BpYyIKICAgICAgICAgICAgICAgIH0KCiAgICAgICAgICAgICAgICBvcmRlckRiID0gY29udGFpbmVyICJPcmRlciBEYXRhYmFzZSIgIlN0b3JlcyBvcmRlciBpbmZvcm1hdGlvbiAoc3RhdHVzLCBpdGVtcywgdXNlciBkZXRhaWxzKS4iICJQb3N0Z3JlU1FMIiB7CiAgICAgICAgICAgICAgICAgICAgdGFncyAiRGF0YWJhc2UiCiAgICAgICAgICAgICAgICB9CgogICAgICAgICAgICAgICAgb3JkZXJTdGF0ZVRvcGljID0gY29udGFpbmVyICJPcmRlciBTdGF0ZSBUb3BpYyIgIlRvcGljIGZvciBjb21wYWN0ZWQgb3JkZXIgc3RhdGUuIiB7CiAgICAgICAgICAgICAgICAgICAgdGFncyAiVG9waWMiCiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAKICAgICAgICAgICAgICAgIHNoaXBwaW5nU3RhdHVzVG9waWMgPSBjb250YWluZXIgIlNoaXBwaW5nIFN0YXR1cyBUb3BpYyIgIlRvcGljIGZvciBzaGlwcGluZyBzdGF0dXMgdXBkYXRlcy4iIHsKICAgICAgICAgICAgICAgICAgICB0YWdzICJUb3BpYyIKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQoKICAgICAgICB9CgogICAgICAgIGN1c3RvbWVyTm90aWZpY2F0aW9uU3lzdGVtID0gc29mdHdhcmVTeXN0ZW0gIkN1c3Ryb21lciBOb3RpZmljYXRpb24gU3lzdGVtIiAiSGFuZGxlcyB1c2VyIG5vdGlmaWNhdGlvbnMgYW5kIGFsZXJ0cy4iIHsKCiAgICAgICAgICAgIG5vdGlmaWNhdGlvblNlcnZpY2VHcm91cCA9IGdyb3VwICJDdXN0cm9tZXIgTm90aWZpY2F0aW9uIFNlcnZpY2UiIHsKCiAgICAgICAgICAgICAgICBub3RpZmljYXRpb25TZXJ2aWNlID0gY29udGFpbmVyICJDdXN0cm9tZXIgTm90aWZpY2F0aW9uIFNlcnZpY2UiICJDb25zdW1lcyBldmVudHMgYW5kIHNlbmRzIG5vdGlmaWNhdGlvbnMgdG8gdXNlcnMgdmlhIGV4dGVybmFsIHNlcnZpY2VzLiIgIkdvL0dpbiIgewogICAgICAgICAgICAgICAgICAgIHRhZ3MgIlNlcnZpY2UiCiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KCiAgICAgICAgfQoKICAgICAgICBpbnZlbnRvcnlOb3RpZmljYXRpb25TeXN0ZW0gPSBzb2Z0d2FyZVN5c3RlbSAiSW52ZXJudG9yeSBOb3RpZmljYXRpb24gU3lzdGVtIiAiSGFuZGxlcyB1c2VyIG5vdGlmaWNhdGlvbnMgYW5kIGFsZXJ0cy4iIHsKCiAgICAgICAgICAgIGludmVudG9yeU5vdGlmaWNhdGlvblNlcnZpY2VHcm91cCA9IGdyb3VwICJJbnZlcm50b3J5IE5vdGlmaWNhdGlvbiBTZXJ2aWNlIiB7CgogICAgICAgICAgICAgICAgaW52ZW50b3J5Tm90aWZpY2F0aW9uU2VydmljZSA9IGNvbnRhaW5lciAiSW52ZXJudG9yeSBOb3RpZmljYXRpb24gU2VydmljZSIgIkNvbnN1bWVzIGV2ZW50cyBhbmQgc2VuZHMgbm90aWZpY2F0aW9ucyB0byB1c2VycyB2aWEgZXh0ZXJuYWwgc2VydmljZXMuIiAiR28vR2luIiB7CiAgICAgICAgICAgICAgICAgICAgdGFncyAiU2VydmljZSIKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQoKICAgICAgICB9CgogICAgICAgIAoKICAgICAgICBpZGVudGl0eVByb3ZpZGVyID0gc29mdHdhcmVTeXN0ZW0gIklkZW50aXR5IFByb3ZpZGVyIiAiRXh0ZXJuYWwgc3lzdGVtIGZvciBhdXRoZW50aWNhdGluZyB1c2Vycy4iIHsKICAgICAgICAgICAgdGFncyAiRXh0ZXJuYWxTeXN0ZW0iCiAgICAgICAgfQoKICAgICAgICBzaGlwcGluZ1N5dGVtID0gc29mdHdhcmVTeXN0ZW0gIlNoaXBwaW5nIFNlcnZpY2UiICJFeHRlcm5hbCBzeXN0ZW0gZm9yIG1hbmFnaW5nIHNoaXBwaW5nIGFuZCBkZWxpdmVyeS4iIHsKICAgICAgICAgICAgc2hpcHBpbmdTZXJ2aWNlID0gY29udGFpbmVyICJTaGlwcGluZyBTZXJ2aWNlIiAiSGFuZGxlcyBzaGlwcGluZy1yZWxhdGVkIGV2ZW50cyBhbmQgdXBkYXRlcy4iICJKYXZhL1NwcmluZyIgewogICAgICAgICAgICAgICAgdGFncyAiU2VydmljZSIKICAgICAgICAgICAgfQoKCiAgICAgICAgICAgIG9yZGVyUmVhZHlGb3JTaGlwcGluZ1RvcGljID0gY29udGFpbmVyICJPcmRlciBSZWFkeSBmb3IgU2hpcHBpbmcgVG9waWMiICJUb3BpYyBmb3Igb3JkZXIgcmVhZHkgZm9yIHNoaXBwaW5nIGV2ZW50cy4iIHsKICAgICAgICAgICAgICAgIHRhZ3MgIlRvcGljIgogICAgICAgICAgICB9CgogICAgICAgIH0KCiAgICAgICAgc2hvd2Nhc2VTeXN0ZW0gPSBzb2Z0d2FyZVN5c3RlbSAiU2hvd2Nhc2UgU3lzdGVtIiAiRXh0ZXJuYWwgc3lzdGVtIGZvciBzaG93Y2FzaW5nIHByb2R1Y3RzLiIgewogICAgICAgICAgICB0YWdzICJFeHRlcm5hbFN5c3RlbSIKCiAgICAgICAgICAgIHNob3djYXNlU2VydmljZSA9IGNvbnRhaW5lciAiU2hvd2Nhc2UgU2VydmljZSIgIkhhbmRsZXMgcHJvZHVjdCBzaG93Y2FzaW5nIGFuZCByZWxhdGVkIGV2ZW50cy4iICJKYXZhL1NwcmluZyIgewogICAgICAgICAgICAgICAgdGFncyAiU2VydmljZSIKICAgICAgICAgICAgfQoKICAgICAgICAgICAgc2hvd2Nhc2VEYiA9IGNvbnRhaW5lciAiU2hvd2Nhc2UgRGF0YWJhc2UiICJTdG9yZXMgcHJvZHVjdCBpbmZvcm1hdGlvbiBhbmQgc2hvd2Nhc2VzLiIgIlBvc3RncmVTUUwiIHsKICAgICAgICAgICAgICAgIHRhZ3MgIkRhdGFiYXNlIgogICAgICAgICAgICB9CgoKICAgICAgICB9CgogICAgICAgIG9yZGVyU2VydmljZSAtPiBvcmRlckRiICJSZWFkcyBmcm9tL1dyaXRlcyB0byIgIlNRTCIKICAgICAgICBvcmRlclNlcnZpY2UgLT4gb3JkZXJTdGF0ZVRvcGljICJQdWJsaXNoZXMiCiAgICAgICAgb3JkZXJTZXJ2aWNlIC0+IG9yZGVyUmVxdWVzdFRvcGljICJQdWJsaXNoZXMiCiAgICAgICAgb3JkZXJTZXJ2aWNlIC0+IHNoaXBwaW5nU3RhdHVzVG9waWMgIkNvbnN1bWVzIgogICAgICAgIG9yZGVyU2VydmljZSAtPiBvcmRlclJlcXVlc3RSZXN1bHRUb3BpYyAiQ29uc3VtZXMiCiAgICAgICAgb3JkZXJTZXJ2aWNlIC0+IG9yZGVyUmVhZHlGb3JTaGlwcGluZ1RvcGljICJQdWJsaXNoZXMiCgogICAgICAgIGludmVudG9yeVNlcnZpY2UgLT4gaW52ZW50b3J5RGIgIlJlYWRzIGZyb20vV3JpdGVzIHRvIgogICAgICAgIGludmVudG9yeVNlcnZpY2UgLT4gb3JkZXJSZXF1ZXN0VG9waWMgIkNvbnN1bWVzIgogICAgICAgIGludmVudG9yeVNlcnZpY2UgLT4gaW52ZXJudG9yeUl0ZW1zVG9waWMgIkNvbnN1bWVzIgogICAgICAgIGludmVudG9yeVNlcnZpY2UgLT4gaW52ZXJudG9yeUl0ZW1zVG9waWMgIlB1Ymxpc2hlcyIgCiAgICAgICAgaW52ZW50b3J5U2VydmljZSAtPiBvcmRlclJlcXVlc3RSZXN1bHRUb3BpYyAiUHVibGlzaGVzIgoKICAgICAgICBub3RpZmljYXRpb25TZXJ2aWNlIC0+IG9yZGVyU3RhdGVUb3BpYyAiQ29uc3VtZXMiCgogICAgICAgIHNoaXBwaW5nU2VydmljZSAtPiBvcmRlclJlYWR5Rm9yU2hpcHBpbmdUb3BpYyAiQ29uc3VtZXMiCiAgICAgICAgc2hpcHBpbmdTZXJ2aWNlIC0+IHNoaXBwaW5nU3RhdHVzVG9waWMgIlB1Ymxpc2hlcyIKCiAgICAgICAgc2hvd2Nhc2VTZXJ2aWNlIC0+IG9yZGVyU3RhdGVUb3BpYyAiQ29uc3VtZXMiCiAgICAgICAgc2hvd2Nhc2VTZXJ2aWNlIC0+IGludmVybnRvcnlJdGVtc1RvcGljICJDb25zdW1lcyIKICAgICAgICBzaG93Y2FzZVNlcnZpY2UgLT4gc2hvd2Nhc2VEYiAiUmVhZHMgZnJvbS9Xcml0ZXMgdG8iICJKREJDIgogICAgICAgIHNob3djYXNlU2VydmljZSAtPiBvcmRlclNlcnZpY2UgIlNlbmRzIGNyZWF0ZSBvcmRlciIgIkhUVFAvUkVTVCIKCiAgICAgICAgaW52ZW50b3J5Tm90aWZpY2F0aW9uU2VydmljZSAtPiBpbnZlcm50b3J5SXRlbXNUb3BpYyAiQ29uc3VtZXMiCiAgICB9CgogICAgdmlld3MgewogICAgICAgIHN5c3RlbUxhbmRzY2FwZSAiRXZlbnR1YWxTdG9yZSIgewogICAgICAgICAgICBpbmNsdWRlICoKICAgICAgICB9CgogICAgICAgIHN5c3RlbUNvbnRleHQgb3JkZXJQcm9jZXNzaW5nU3lzdGVtICJTeXN0ZW1Db250ZXh0IiAiVGhlIFN5c3RlbSBDb250ZXh0IGRpYWdyYW0gZm9yIHRoZSBTaW1wbGUgT3JkZXIgUHJvY2Vzc2luZyBTeXN0ZW0uIiB7CiAgICAgICAgICAgIGluY2x1ZGUgKgogICAgICAgICAgICBkZXNjcmlwdGlvbiAiU2hvd3MgdGhlIFNpbXBsZSBPcmRlciBQcm9jZXNzaW5nIFN5c3RlbSwgdGhlIHBlb3BsZSB3aG8gdXNlIGl0LCBhbmQgdGhlIGV4dGVybmFsIHN5c3RlbXMgaXQgaW50ZXJhY3RzIHdpdGguIgogICAgICAgIH0KCiAgICAgICAgY29udGFpbmVyIG9yZGVyUHJvY2Vzc2luZ1N5c3RlbSAiQ29udGFpbmVycyIgIlRoZSBDb250YWluZXIgZGlhZ3JhbSBmb3IgdGhlIFNpbXBsZSBPcmRlciBQcm9jZXNzaW5nIFN5c3RlbS4iIHsKICAgICAgICAgICAgaW5jbHVkZSBlbGVtZW50LnBhcmVudD09b3JkZXJQcm9jZXNzaW5nU3lzdGVtIGVsZW1lbnQucGFyZW50PT1pbnZlbnRvcnlTeXN0ZW0gZWxlbWVudC5wYXJlbnQ9PXNoaXBwaW5nU3l0ZW0gZWxlbWVudC5wYXJlbnQ9PXNob3djYXNlU3lzdGVtIGVsZW1lbnQucGFyZW50PT1jdXN0b21lck5vdGlmaWNhdGlvblN5c3RlbSBlbGVtZW50LnBhcmVudD09aW52ZW50b3J5Tm90aWZpY2F0aW9uU3lzdGVtCiAgICAgICAgICAgIGRlc2NyaXB0aW9uICJTaG93cyB0aGUgaW50ZXJuYWwgY29udGFpbmVycyB3aXRoaW4gdGhlIFNpbXBsZSBPcmRlciBQcm9jZXNzaW5nIFN5c3RlbSBhbmQgdGhlaXIgaW50ZXJhY3Rpb25zLiIKICAgICAgICB9CgogICAgICAgIHN0eWxlcyB7CiAgICAgICAgICAgIGVsZW1lbnQgIlBlcnNvbiIgeyAKICAgICAgICAgICAgICAgIHNoYXBlIFBlcnNvbgogICAgICAgICAgICAgICAgYmFja2dyb3VuZCAjZDg2NjE0CiAgICAgICAgICAgICAgICBjb2xvciAjZmZmZmZmCiAgICAgICAgICAgICAgICBmb250U2l6ZSAyMiAKICAgICAgICAgICAgfQogICAgICAgICAgICBlbGVtZW50ICJTb2Z0d2FyZSBTeXN0ZW0iIHsgCiAgICAgICAgICAgICAgICBzaGFwZSBSb3VuZGVkQm94CiAgICAgICAgICAgICAgICBiYWNrZ3JvdW5kICMxMTY4YmQKICAgICAgICAgICAgICAgIGNvbG9yICNmZmZmZmYKICAgICAgICAgICAgICAgIGZvbnRTaXplIDIyIAogICAgICAgICAgICB9CiAgICAgICAgICAgIGVsZW1lbnQgIkNvbnRhaW5lciIgeyAKICAgICAgICAgICAgICAgIHNoYXBlIEhleGFnb24KICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzQzOGRkNQogICAgICAgICAgICAgICAgY29sb3IgI2ZmZmZmZgogICAgICAgICAgICAgICAgZm9udFNpemUgMjAgCiAgICAgICAgICAgIH0KICAgICAgICAgICAgZWxlbWVudCAiRGF0YWJhc2UiIHsgCiAgICAgICAgICAgICAgICBzaGFwZSBDeWxpbmRlcgogICAgICAgICAgICAgICAgYmFja2dyb3VuZCAjODViY2UwCiAgICAgICAgICAgICAgICBjb2xvciAjMDAwMDAwCiAgICAgICAgICAgICAgICBmb250U2l6ZSAxOCAKICAgICAgICAgICAgfQogICAgICAgICAgICBlbGVtZW50ICJNZXNzYWdlQnVzIiB7IAogICAgICAgICAgICAgICAgc2hhcGUgUGlwZQogICAgICAgICAgICAgICAgYmFja2dyb3VuZCAjYmViZWJlCiAgICAgICAgICAgICAgICBjb2xvciAjMDAwMDAwCiAgICAgICAgICAgICAgICBmb250U2l6ZSAxOCAKICAgICAgICAgICAgfQogICAgICAgICAgICBlbGVtZW50ICJFeHRlcm5hbFN5c3RlbSIgeyAKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgIzZjNzU3ZAogICAgICAgICAgICAgICAgY29sb3IgI2ZmZmZmZiAKICAgICAgICAgICAgfQogICAgICAgICAgICBlbGVtZW50ICJBY3RvciIgeyAKICAgICAgICAgICAgICAgIGJhY2tncm91bmQgI2Q4NjYxNCAKICAgICAgICAgICAgfQogICAgICAgICAgICBlbGVtZW50ICJTZXJ2aWNlIiB7IAogICAgICAgICAgICAgICAgc2hhcGUgQ29tcG9uZW50IAogICAgICAgICAgICB9CiAgICAgICAgICAgIGVsZW1lbnQgIlRvcGljIiB7IAogICAgICAgICAgICAgICAgc2hhcGUgUGlwZQogICAgICAgICAgICAgICAgYmFja2dyb3VuZCAjZjBhZDRlCiAgICAgICAgICAgICAgICBjb2xvciAjMDAwMDAwCiAgICAgICAgICAgICAgICBmb250U2l6ZSAxOCAKICAgICAgICAgICAgfQogICAgICAgIH0KICAgIH0KICAgIAp9"
+  },
+  "views" : {
+    "configuration" : {
+      "branding" : { },
+      "lastSavedView" : "EventualStore",
+      "metadataSymbols" : "SquareBrackets",
+      "styles" : {
+        "elements" : [ {
+          "background" : "#d86614",
+          "color" : "#ffffff",
+          "fontSize" : 22,
+          "shape" : "Person",
+          "tag" : "Person"
+        }, {
+          "background" : "#1168bd",
+          "color" : "#ffffff",
+          "fontSize" : 22,
+          "shape" : "RoundedBox",
+          "tag" : "Software System"
+        }, {
+          "background" : "#438dd5",
+          "color" : "#ffffff",
+          "fontSize" : 20,
+          "shape" : "Hexagon",
+          "tag" : "Container"
+        }, {
+          "background" : "#85bce0",
+          "color" : "#000000",
+          "fontSize" : 18,
+          "shape" : "Cylinder",
+          "tag" : "Database"
+        }, {
+          "background" : "#bebebe",
+          "color" : "#000000",
+          "fontSize" : 18,
+          "shape" : "Pipe",
+          "tag" : "MessageBus"
+        }, {
+          "background" : "#6c757d",
+          "color" : "#ffffff",
+          "tag" : "ExternalSystem"
+        }, {
+          "background" : "#d86614",
+          "tag" : "Actor"
+        }, {
+          "shape" : "Component",
+          "tag" : "Service"
+        }, {
+          "background" : "#f0ad4e",
+          "color" : "#000000",
+          "fontSize" : 18,
+          "shape" : "Pipe",
+          "tag" : "Topic"
+        } ]
+      },
+      "terminology" : { }
+    },
+    "containerViews" : [ {
+      "description" : "Shows the internal containers within the Simple Order Processing System and their interactions.",
+      "dimensions" : {
+        "height" : 3490,
+        "width" : 5980
+      },
+      "elements" : [ {
+        "id" : "4",
+        "x" : 3700,
+        "y" : 1391
+      }, {
+        "id" : "5",
+        "x" : 3705,
+        "y" : 1926
+      }, {
+        "id" : "6",
+        "x" : 4495,
+        "y" : 1391
+      }, {
+        "id" : "7",
+        "x" : 3680,
+        "y" : 816
+      }, {
+        "id" : "9",
+        "x" : 2105,
+        "y" : 796
+      }, {
+        "id" : "10",
+        "x" : 2700,
+        "y" : 1401
+      }, {
+        "id" : "11",
+        "x" : 1095,
+        "y" : 1351
+      }, {
+        "id" : "12",
+        "x" : 1059,
+        "y" : 1861
+      }, {
+        "id" : "13",
+        "x" : 1089,
+        "y" : 826
+      }, {
+        "id" : "15",
+        "x" : 240,
+        "y" : 1871
+      }, {
+        "id" : "17",
+        "x" : 5290,
+        "y" : 1921
+      }, {
+        "id" : "20",
+        "x" : 1078,
+        "y" : 172
+      }, {
+        "id" : "21",
+        "x" : 2100,
+        "y" : 196
+      }, {
+        "id" : "23",
+        "x" : 2115,
+        "y" : 2851
+      }, {
+        "id" : "24",
+        "x" : 3140,
+        "y" : 2846
+      } ],
+      "externalSoftwareSystemBoundariesVisible" : false,
+      "key" : "Containers",
+      "order" : 3,
+      "relationships" : [ {
+        "id" : "25"
+      }, {
+        "id" : "26"
+      }, {
+        "id" : "27"
+      }, {
+        "id" : "31"
+      }, {
+        "id" : "32"
+      }, {
+        "id" : "33"
+      }, {
+        "id" : "37"
+      }, {
+        "id" : "38"
+      }, {
+        "id" : "39",
+        "vertices" : [ {
+          "x" : 3777,
+          "y" : 1809
+        } ]
+      }, {
+        "id" : "40",
+        "vertices" : [ {
+          "x" : 4077,
+          "y" : 1807
+        } ]
+      }, {
+        "id" : "41"
+      }, {
+        "id" : "45"
+      }, {
+        "id" : "49"
+      }, {
+        "id" : "50"
+      }, {
+        "id" : "54"
+      }, {
+        "id" : "58"
+      }, {
+        "id" : "62"
+      }, {
+        "id" : "63"
+      }, {
+        "id" : "65"
+      } ],
+      "softwareSystemId" : "8"
+    } ],
+    "systemContextViews" : [ {
+      "description" : "Shows the Simple Order Processing System, the people who use it, and the external systems it interacts with.",
+      "dimensions" : {
+        "height" : 2215,
+        "width" : 2630
+      },
+      "elements" : [ {
+        "id" : "3",
+        "x" : 1979,
+        "y" : 777
+      }, {
+        "id" : "8",
+        "x" : 1054,
+        "y" : 802
+      }, {
+        "id" : "14",
+        "x" : 1049,
+        "y" : 152
+      }, {
+        "id" : "19",
+        "x" : 199,
+        "y" : 812
+      }, {
+        "id" : "22",
+        "x" : 1049,
+        "y" : 1667
+      } ],
+      "enterpriseBoundaryVisible" : true,
+      "key" : "SystemContext",
+      "order" : 2,
+      "relationships" : [ {
+        "id" : "30",
+        "vertices" : [ {
+          "x" : 1745,
+          "y" : 1089
+        } ]
+      }, {
+        "id" : "36",
+        "vertices" : [ {
+          "x" : 872,
+          "y" : 814
+        } ]
+      }, {
+        "id" : "44",
+        "vertices" : [ {
+          "x" : 1737,
+          "y" : 789
+        } ]
+      }, {
+        "id" : "48"
+      }, {
+        "id" : "53",
+        "vertices" : [ {
+          "x" : 870,
+          "y" : 1114
+        } ]
+      }, {
+        "id" : "57"
+      }, {
+        "id" : "61"
+      } ],
+      "softwareSystemId" : "8"
+    } ],
+    "systemLandscapeViews" : [ {
+      "dimensions" : {
+        "height" : 2635,
+        "width" : 3090
+      },
+      "elements" : [ {
+        "id" : "1",
+        "x" : 979,
+        "y" : 2000
+      }, {
+        "id" : "2",
+        "x" : 1799,
+        "y" : 390
+      }, {
+        "id" : "3",
+        "x" : 1754,
+        "y" : 805
+      }, {
+        "id" : "8",
+        "x" : 951,
+        "y" : 800
+      }, {
+        "id" : "14",
+        "x" : 954,
+        "y" : 165
+      }, {
+        "id" : "16",
+        "x" : 2439,
+        "y" : 790
+      }, {
+        "id" : "18",
+        "x" : 2409,
+        "y" : 1705
+      }, {
+        "id" : "19",
+        "x" : 199,
+        "y" : 810
+      }, {
+        "id" : "22",
+        "x" : 954,
+        "y" : 1675
+      } ],
+      "enterpriseBoundaryVisible" : true,
+      "key" : "EventualStore",
+      "order" : 1,
+      "relationships" : [ {
+        "id" : "30",
+        "vertices" : [ {
+          "x" : 1576,
+          "y" : 1102
+        } ]
+      }, {
+        "id" : "36",
+        "vertices" : [ {
+          "x" : 798,
+          "y" : 805
+        } ]
+      }, {
+        "id" : "44",
+        "vertices" : [ {
+          "x" : 1578,
+          "y" : 802
+        } ]
+      }, {
+        "id" : "48"
+      }, {
+        "id" : "53",
+        "vertices" : [ {
+          "x" : 801,
+          "y" : 1104
+        } ]
+      }, {
+        "id" : "57"
+      }, {
+        "id" : "61"
+      }, {
+        "id" : "68"
+      } ]
+    } ]
+  }
+}
