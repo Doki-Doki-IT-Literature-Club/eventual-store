@@ -1,7 +1,6 @@
 package shared
 
 const KafkaAddress = "kafka:9092"
-const DbConnString = "postgres://user:password@postgres:5432/"
 
 const OrderShippingRequestTopic = "order-shipping-request"
 
