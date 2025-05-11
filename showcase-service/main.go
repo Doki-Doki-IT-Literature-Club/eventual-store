@@ -6,6 +6,7 @@ import (
 	"html"
 	"log"
 	"strings"
+	"time"
 
 	"fmt"
 	"net/http"
@@ -14,11 +15,88 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/twmb/franz-go/pkg/kgo"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
+var (
+	httpRequestsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "showcase_http_requests_total",
+			Help: "Total number of HTTP requests handled by the application.",
+		},
+		[]string{"path", "method", "status_code"},
+	)
+
+	httpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "showcase_http_request_duration_seconds",
+		Help:    "Histogram of request latencies.",
+		Buckets: prometheus.DefBuckets,
+	},
+		[]string{"path", "method"},
+	)
+
+	activeRequests = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "showcase_active_requests",
+		Help: "Number of active requests currently being processed.",
+	})
 )
 
 const (
 	dbName = "showcase_db"
 )
+
+type statusRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (sr *statusRecorder) WriteHeader(statusCode int) {
+	sr.statusCode = statusCode
+	sr.ResponseWriter.WriteHeader(statusCode)
+}
+
+func NewStatusRecorder(w http.ResponseWriter) *statusRecorder {
+	return &statusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
+}
+
+func prometheusMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		activeRequests.Inc()
+		defer activeRequests.Dec()
+
+		sr := NewStatusRecorder(w)
+
+		next.ServeHTTP(sr, r)
+
+		duration := time.Since(start)
+		path := r.URL.Path
+		method := r.Method
+		statusCode := fmt.Sprintf("%d", sr.statusCode)
+
+		httpRequestsTotal.With(prometheus.Labels{
+			"path":        path,
+			"method":      method,
+			"status_code": statusCode,
+		}).Inc()
+
+		httpRequestDuration.With(prometheus.Labels{
+			"path":   path,
+			"method": method,
+		}).Observe(duration.Seconds())
+
+		log.Printf(
+			"Metrics: path=%s method=%s status=%s duration=%v",
+			path,
+			method,
+			statusCode,
+			duration,
+		)
+	})
+}
 
 type Order struct {
 	ID       string         `json:"id"`
@@ -83,17 +161,22 @@ func OrdersToHTMLTable(orders []Order) string {
 }
 
 func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
-	http.HandleFunc("GET /orders", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+
+	mux.Handle("/metrics", promhttp.Handler())
+	mux.Handle("GET /orders", prometheusMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(10 * time.Second)
 		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
 		orders, err := GetOrders(conn, context.Background())
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		w.WriteHeader(http.StatusOK)
 		orderSting, err := json.Marshal(orders)
 		w.Write([]byte(orderSting))
-	})
-	http.HandleFunc("GET /orders-html", func(w http.ResponseWriter, r *http.Request) {
+	})))
+	mux.Handle("GET /orders-html", prometheusMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received request: %s %s", r.Method, r.URL.Path)
 		orders, err := GetOrders(conn, context.Background())
 		if err != nil {
@@ -102,16 +185,12 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 		w.WriteHeader(http.StatusOK)
 		orderSting := OrdersToHTMLTable(orders)
 		w.Write([]byte(orderSting))
-	})
+	})))
 
 	port := 80
 	log.Printf("Starting server on port %d", port)
-	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
+	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), mux); err != nil {
 		log.Fatalf("Server error: %v", err)
-
-		if err != nil {
-			panic(err)
-		}
 	}
 }
 

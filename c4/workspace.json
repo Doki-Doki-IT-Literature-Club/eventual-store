@@ -3,8 +3,7 @@
   "description" : "Level 2 Container diagram for the Simple Order Processing System.",
   "documentation" : { },
   "id" : 1,
-  "lastModifiedAgent" : "structurizr-ui",
-  "lastModifiedDate" : "2025-05-11T11:16:39Z",
+  "lastModifiedDate" : "2025-05-11T11:41:58Z",
   "model" : {
     "people" : [ {
       "description" : "An end-user of the e-commerce platform who places orders.",
@@ -546,7 +545,6 @@
     "configuration" : {
       "branding" : { },
       "lastSavedView" : "EventualStore",
-      "metadataSymbols" : "SquareBrackets",
       "styles" : {
         "elements" : [ {
           "background" : "#d86614",
