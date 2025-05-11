@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/Doki-Doki-IT-Literature-Club/sops/shared"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -23,14 +24,7 @@ type Inventory struct {
 	Amount int    `json:"amount"`
 }
 
-func initDB(conn *pgx.Conn) error {
-	tx, err := conn.BeginTx(context.Background(), pgx.TxOptions{})
-
-	if err != nil {
-		return fmt.Errorf("unable to start transaction: %v", err)
-	}
-	defer tx.Rollback(context.Background())
-
+func initDB(ctx context.Context, conn *pgx.Conn) error {
 	ordersTableSQL := `
 		CREATE TABLE IF NOT EXISTS orders
 	  (id TEXT PRIMARY KEY, status TEXT, products TEXT)`
@@ -39,20 +33,7 @@ func initDB(conn *pgx.Conn) error {
 		CREATE TABLE IF NOT EXISTS inventory
 	  (id TEXT PRIMARY KEY, amount NUMERIC)`
 
-	_, err = tx.Exec(context.Background(), ordersTableSQL)
-
-	if err != nil {
-		return fmt.Errorf("unable to create table: %v", err)
-	}
-
-	_, err = tx.Exec(context.Background(), inventoryTableSQL)
-	if err != nil {
-		return fmt.Errorf("unable to create table: %v", err)
-	}
-
-	err = tx.Commit(context.Background())
-
-	return nil
+	return shared.InitDataBases(ctx, conn, []string{ordersTableSQL, inventoryTableSQL})
 }
 
 func updateOrder(conn *pgx.Conn, ctx context.Context, order Order) error {

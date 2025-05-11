@@ -15,14 +15,18 @@ func main() {
 	log.Printf("Starting inventory service")
 	ctx := context.Background()
 
-	ensureDBExists(dbName)
-	conn, err := connectToDB()
+	err := shared.EnsureDBExists(ctx, dbName)
+	if err != nil {
+		log.Fatalf("Failed to ensure database exists: %v", err)
+	}
+
+	conn, err := shared.ConnectToDB(ctx, dbName)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer conn.Close(ctx)
 
-	err = initDB(conn)
+	err = initDB(ctx, conn)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}

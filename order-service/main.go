@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -50,16 +49,19 @@ func main() {
 		log.Fatalf("Error creating Kafka client: %v", err)
 	}
 
-	ensureDBExists(shared.DbConnString, dbName)
+	err = shared.EnsureDBExists(ctx, dbName)
+	if err != nil {
+		log.Fatalf("Error ensuring database exists: %v", err)
+	}
 
-	conn, err := connectToDB()
+	conn, err := shared.ConnectToDB(ctx, dbName)
 	if err != nil {
 		log.Fatalf("Error connecting to database: %v", err)
 	}
 
 	defer conn.Close(ctx)
 
-	if err := initDB(conn); err != nil {
+	if err := initDB(ctx, conn); err != nil {
 		log.Fatalf("Error creating test table: %v", err)
 	}
 
@@ -145,47 +147,6 @@ func sendOrderShippingRequest(kcl *kgo.Client, orderID string, ctx context.Conte
 	})
 }
 
-func upsertOrder(ctx context.Context, conn *pgx.Conn, order *Order) error {
-	log.Print("Starting upserting")
-	tx, err := conn.Begin(ctx)
-	if err != nil {
-		return fmt.Errorf("Could not begin transaction: %s", err.Error())
-	}
-	defer tx.Rollback(ctx)
-	updateOrderQ := `
-    INSERT INTO orders (id, status, products) 
-    VALUES ($1, $2, $3)
-
-    ON CONFLICT(id)
-    DO UPDATE SET status=$2
-    `
-
-	productBytes, err := json.Marshal(order.Products)
-	if err != nil {
-		return err
-	}
-
-	_, err = tx.Exec(context.Background(), updateOrderQ, order.ID, order.Status, productBytes)
-	if err != nil {
-		return fmt.Errorf("unable to upsert: %v", err)
-	}
-
-	data, err := json.Marshal(order)
-	if err != nil {
-		return err
-	}
-
-	err = shared.InsertOutboxEvent(ctx, tx, "Order", order.ID, orderUpdateOutboxEventType, data)
-	if err != nil {
-		return err
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("unable to commit: %v", err)
-	}
-	return nil
-}
-
 func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 	log.Printf("Start consuming events...")
 	for {
@@ -235,72 +196,4 @@ func consume(kcl *kgo.Client, conn *pgx.Conn, ctx context.Context) {
 			}
 		})
 	}
-}
-
-func connectToDB() (*pgx.Conn, error) {
-	conn, err := pgx.Connect(context.Background(), shared.DbConnString+dbName)
-	if err != nil {
-		return nil, fmt.Errorf("unable to connect to database: %v", err)
-	}
-	return conn, nil
-}
-
-func initDB(conn *pgx.Conn) error {
-	_, err := conn.Exec(context.Background(), "CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, status TEXT, products TEXT)")
-	if err != nil {
-		return fmt.Errorf("unable to create table: %v", err)
-	}
-
-	outboxTableSQL := `
-	CREATE TABLE IF NOT EXISTS outbox_events (
-		id UUID PRIMARY KEY,
-		aggregate_type TEXT NOT NULL,
-		aggregate_id TEXT NOT NULL,
-		event_type TEXT NOT NULL,
-		payload JSONB NOT NULL,
-		status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- PENDING, PUBLISHED, FAILED
-		created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-		published_at TIMESTAMPTZ NULL
-	);`
-
-	_, err = conn.Exec(context.Background(), outboxTableSQL)
-	if err != nil {
-		return fmt.Errorf("unable to create table: %v", err)
-	}
-
-	outboxIndexSQL := `
-	CREATE INDEX IF NOT EXISTS idx_outbox_events_status_created_at
-	ON outbox_events (status, created_at);
-	`
-
-	_, err = conn.Exec(context.Background(), outboxIndexSQL)
-	if err != nil {
-		return fmt.Errorf("unable to create index: %v", err)
-	}
-
-	return nil
-}
-
-func ensureDBExists(dbConnString string, dbName string) {
-	initialDbConnString := dbConnString + "postgres"
-	conn, err := pgx.Connect(context.Background(), initialDbConnString)
-	if err != nil {
-		log.Fatalf("Unable to connect to database: %v", err)
-	}
-	defer conn.Close(context.Background())
-
-	_, err = conn.Exec(context.Background(), fmt.Sprintf("CREATE DATABASE %s", pgx.Identifier{dbName}.Sanitize()))
-	if err != nil {
-		pgErr, ok := err.(*pgconn.PgError)
-		// 42P04 = duplicate_database'
-		if ok && pgErr.Code == "42P04" {
-			log.Printf("Database '%s' exists.\n", dbName)
-		} else {
-			log.Fatalf("Failed to create database '%s': %v\n", dbName, err)
-		}
-	} else {
-		log.Printf("Database '%s' created.\n", dbName)
-	}
-
-	log.Printf("Database '%s' checked.\n", dbName)
 }

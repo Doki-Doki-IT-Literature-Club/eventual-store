@@ -32,7 +32,7 @@ func main() {
 
 	defer conn.Close(ctx)
 
-	if err := initDB(conn); err != nil {
+	if err := initDB(ctx, conn); err != nil {
 		log.Fatalf("Error creating test table: %v", err)
 	}
 
