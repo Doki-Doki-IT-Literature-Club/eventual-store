@@ -89,7 +89,7 @@ func httpServer(conn *pgx.Conn, kcl *kgo.Client, ctx context.Context) {
 		w.Write([]byte(orderID.String()))
 	})
 
-	port := 8002
+	port := 80
 	log.Printf("Starting server on port %d", port)
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", port), nil); err != nil {
 		log.Fatalf("Error starting server: %v", err)

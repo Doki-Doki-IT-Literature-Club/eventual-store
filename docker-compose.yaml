@@ -23,8 +23,6 @@ services:
     volumes:
       - ./order-service:/app
       - ./shared:/shared
-    ports:
-      - 8002:8002
     networks:
       - sharednet
     depends_on:
@@ -56,8 +54,6 @@ services:
     build:
       context: ./shipment-service
       dockerfile: Dockerfile.dev
-    ports:
-      - "8001:8001"
     volumes:
       - ./shipment-service:/app
       - ./shared:/shared
