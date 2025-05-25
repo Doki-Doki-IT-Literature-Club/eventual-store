@@ -13,9 +13,10 @@ import (
 )
 
 type outboxEvent struct {
-	ID        uuid.UUID
-	EventType string
-	Payload   []byte
+	ID          string
+	EventType   string
+	AggregateID string
+	Payload     []byte
 }
 
 func InsertOutboxEvent(
@@ -65,7 +66,7 @@ func ConsumeOutbox(ctx context.Context, conn *pgx.Conn, kcl *kgo.Client, pollInt
 
 func processOutboxBatch(ctx context.Context, conn *pgx.Conn, kcl *kgo.Client, eventTypeToTopicName map[string]string) error {
 	selectSQL := `
-	SELECT id, payload, event_type
+	SELECT id, payload, event_type, aggregate_id
 	FROM outbox_events
 	WHERE status = 'PENDING'
 	ORDER BY created_at
@@ -79,7 +80,7 @@ func processOutboxBatch(ctx context.Context, conn *pgx.Conn, kcl *kgo.Client, ev
 	var eventsToPublish []outboxEvent
 	for rows.Next() {
 		var event outboxEvent
-		if err := rows.Scan(&event.ID, &event.Payload, &event.EventType); err != nil {
+		if err := rows.Scan(&event.ID, &event.Payload, &event.EventType, &event.AggregateID); err != nil {
 			return fmt.Errorf("error scanning row: %w", err)
 		}
 		eventsToPublish = append(eventsToPublish, event)
@@ -105,10 +106,11 @@ func processOutboxBatch(ctx context.Context, conn *pgx.Conn, kcl *kgo.Client, ev
 		}
 
 		record := &kgo.Record{
+			Key:   []byte(event.AggregateID),
 			Topic: topic,
 			Value: event.Payload,
 			Headers: []kgo.RecordHeader{
-				{Key: "outbox_id", Value: []byte(event.ID.String())},
+				{Key: "outbox_id", Value: []byte(event.ID)},
 			},
 		}
 		recordsToPublish[i] = record
