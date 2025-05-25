@@ -137,6 +137,9 @@ func fillDB(conn *pgx.Conn, ctx context.Context) error {
 		{ID: "product1", Amount: 100},
 		{ID: "product2", Amount: 2},
 		{ID: "product3", Amount: 0},
+		{ID: "product4", Amount: 1},
+		{ID: "product1000", Amount: 1},
+		{ID: "zxczx320xl", Amount: 1},
 	}
 
 	for _, item := range products {

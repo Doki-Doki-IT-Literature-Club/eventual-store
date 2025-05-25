@@ -31,7 +31,6 @@ func main() {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 
-	log.Println("waht the fukc?")
 	err = fillDB(conn, ctx)
 	if err != nil {
 		log.Fatalf("Failed to fill database: %v", err)
